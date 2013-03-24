@@ -114,7 +114,7 @@ on_anjuta_delete_event (AnjutaWindow *win, GdkEvent *event, gpointer user_data)
 		}
 	}
 
-	/* Close the profile manager which will emit "profile-descoped" and release
+	/* Close the profile manager which will emit "descoped" and release
 	 * all previous profiles. */
 	anjuta_profile_manager_close (profile_manager);
 
@@ -135,16 +135,11 @@ on_anjuta_delete_event (AnjutaWindow *win, GdkEvent *event, gpointer user_data)
 }
 
 static void
-on_profile_scoped (AnjutaProfileManager *profile_manager,
-				   AnjutaProfile *profile, AnjutaWindow *win)
+on_profile_scoped (AnjutaProfile *profile, AnjutaWindow *win)
 {
 	gchar *session_dir;
 	static gboolean first_time = TRUE;
 	AnjutaSession *session;
-
-	DEBUG_PRINT ("Profile scoped: %s", anjuta_profile_get_name (profile));
-	if (strcmp (anjuta_profile_get_name (profile), USER_PROFILE_NAME) != 0)
-		return;
 
 	DEBUG_PRINT ("%s", "User profile loaded; Restoring user session");
 
@@ -182,14 +177,9 @@ on_profile_scoped (AnjutaProfileManager *profile_manager,
 }
 
 static void
-on_profile_descoped (AnjutaProfileManager *profile_manager,
-					 AnjutaProfile *profile, AnjutaWindow *win)
+on_profile_descoped (AnjutaProfile *profile, AnjutaWindow *win)
 {
 	gchar *session_dir;
-
-	DEBUG_PRINT ("Profile descoped: %s", anjuta_profile_get_name (profile));
-	if (strcmp (anjuta_profile_get_name (profile), USER_PROFILE_NAME) != 0)
-		return;
 
 	DEBUG_PRINT ("%s", "User profile descoped; Saving user session");
 
@@ -640,8 +630,7 @@ anjuta_application_create_window (AnjutaApplication *app)
 	}
 
 	/* Prepare for session save and load on profile change */
-	g_signal_connect (profile_manager, "profile-scoped",
-					  G_CALLBACK (on_profile_scoped), win);
+	g_signal_connect (profile, "scoped", G_CALLBACK (on_profile_scoped), win);
 	anjuta_profile_manager_thaw (profile_manager, &error);
 
 	if (error)
@@ -650,8 +639,7 @@ anjuta_application_create_window (AnjutaApplication *app)
 		g_error_free (error);
 		error = NULL;
 	}
-	g_signal_connect (profile_manager, "profile-descoped",
-					  G_CALLBACK (on_profile_descoped), win);
+	g_signal_connect (profile, "descoped", G_CALLBACK (on_profile_descoped), win);
 
 	anjuta_status_progress_tick (status, NULL, _("Loaded Session…"));
 	anjuta_status_disable_splash (status, TRUE);

@@ -45,10 +45,6 @@ struct _AnjutaProfileManagerClass
 							AnjutaProfile* profile);
 	void(* profile_popped) (AnjutaProfileManager *self,
 							AnjutaProfile* profile);
-	void(* profile_descoped) (AnjutaProfileManager *self,
-							  AnjutaProfile* profile);
-	void(* profile_scoped) (AnjutaProfileManager *self,
-							AnjutaProfile* profile);
 };
 
 /**
@@ -69,7 +65,7 @@ AnjutaProfileManager *anjuta_profile_manager_new (AnjutaPluginManager *plugin_ma
 gboolean anjuta_profile_manager_push (AnjutaProfileManager *profile_manager,
 									  AnjutaProfile *profile, GError **error);
 gboolean anjuta_profile_manager_pop (AnjutaProfileManager *profile_manager,
-									 const gchar *profile_name, GError **error);
+									 AnjutaProfile *profile, GError **error);
 
 void anjuta_profile_manager_freeze (AnjutaProfileManager *profile_manager);
 gboolean anjuta_profile_manager_thaw (AnjutaProfileManager *profile_manager,

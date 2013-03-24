@@ -93,6 +93,8 @@ enum
 	PLUGIN_ADDED,
 	PLUGIN_REMOVED,
 	CHANGED,
+	DESCOPED,
+	SCOPED,
 	LAST_SIGNAL
 };
 
@@ -334,6 +336,39 @@ anjuta_profile_class_init (AnjutaProfileClass *klass)
 		              anjuta_cclosure_marshal_VOID__POINTER,
 		              G_TYPE_NONE, 1,
 		              G_TYPE_POINTER);
+
+	/**
+	 * AnjutaProfile::profile-descoped:
+	 * @profile: the old unloaded #AnjutaProfile
+	 * 
+	 * Emitted when a profile will be unloaded.
+	 */
+	profile_signals[DESCOPED] =
+		g_signal_new ("descoped",
+		              G_OBJECT_CLASS_TYPE (klass),
+		              G_SIGNAL_RUN_FIRST,
+		              G_STRUCT_OFFSET (AnjutaProfileClass,
+									   descoped),
+		              NULL, NULL,
+					  g_cclosure_marshal_VOID__VOID,
+		              G_TYPE_NONE, 0);
+	
+	/**
+	 * AnjutaProfileManager::profile-scoped:
+	 * @profile_manager: a #AnjutaProfileManager object.
+	 * @profile: the current loaded #AnjutaProfile.
+	 * 
+	 * Emitted when a new profile is loaded.
+	 */
+	profile_signals[SCOPED] =
+		g_signal_new ("scoped",
+		              G_OBJECT_CLASS_TYPE (klass),
+		              G_SIGNAL_RUN_FIRST,
+		              G_STRUCT_OFFSET (AnjutaProfileClass,
+									   scoped),
+		              NULL, NULL,
+					  g_cclosure_marshal_VOID__VOID,
+		              G_TYPE_NONE, 0);
 }
 
 GType

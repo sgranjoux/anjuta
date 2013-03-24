@@ -72,6 +72,8 @@ struct _AnjutaProfileClass
 	void(* plugin_removed) (AnjutaProfile *self,
 							AnjutaPluginDescription *plugin);
 	void(* changed) (AnjutaProfile *self, GList *plugins);
+	void(* descoped) (AnjutaProfile *self);
+	void(* scoped) (AnjutaProfile *self);
 };
 
 /**

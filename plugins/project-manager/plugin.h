@@ -78,6 +78,9 @@ struct _ProjectManagerPlugin{
 
 	/* project is loading */
 	gboolean busy;
+
+	/* profile */
+	AnjutaProfile *profile;
 };
 
 struct _ProjectManagerPluginClass{

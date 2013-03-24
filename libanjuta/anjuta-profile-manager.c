@@ -51,8 +51,6 @@ enum
 {
 	PROFILE_PUSHED,
 	PROFILE_POPPED,
-	PROFILE_DESCOPED,
-	PROFILE_SCOPED,
 	LAST_SIGNAL
 };
 
@@ -236,41 +234,6 @@ anjuta_profile_manager_class_init (AnjutaProfileManagerClass *klass)
 		              G_TYPE_NONE, 1,
 		              ANJUTA_TYPE_PROFILE);
 	
-	/**
-	 * AnjutaProfileManager::profile-descoped:
-	 * @profile_manager: a #AnjutaProfileManager object.
-	 * @profile: the old unloaded #AnjutaProfile.
-	 * 
-	 * Emitted when a profile will be unloaded.
-	 */
-	profile_manager_signals[PROFILE_DESCOPED] =
-		g_signal_new ("profile-descoped",
-		              G_OBJECT_CLASS_TYPE (klass),
-		              G_SIGNAL_RUN_FIRST,
-		              G_STRUCT_OFFSET (AnjutaProfileManagerClass,
-									   profile_descoped),
-		              NULL, NULL,
-					  anjuta_cclosure_marshal_VOID__OBJECT,
-		              G_TYPE_NONE, 1,
-		              ANJUTA_TYPE_PROFILE);
-	
-	/**
-	 * AnjutaProfileManager::profile-scoped:
-	 * @profile_manager: a #AnjutaProfileManager object.
-	 * @profile: the current loaded #AnjutaProfile.
-	 * 
-	 * Emitted when a new profile is loaded.
-	 */
-	profile_manager_signals[PROFILE_SCOPED] =
-		g_signal_new ("profile-scoped",
-		              G_OBJECT_CLASS_TYPE (klass),
-		              G_SIGNAL_RUN_FIRST,
-		              G_STRUCT_OFFSET (AnjutaProfileManagerClass,
-									   profile_scoped),
-		              NULL, NULL,
-					  anjuta_cclosure_marshal_VOID__OBJECT,
-		              G_TYPE_NONE, 1,
-		              ANJUTA_TYPE_PROFILE);
 }
 
 GType
@@ -345,8 +308,7 @@ anjuta_profile_manager_load_profile (AnjutaProfileManager *profile_manager,
 	/* Emit pre-change for the last profile */
 	if (previous_profile)
 	{
-		g_signal_emit_by_name (profile_manager, "profile-descoped",
-							   previous_profile);
+		g_signal_emit_by_name (previous_profile, "descoped");
 	}
 	
 	/* Prepare plugins to activate */
@@ -445,7 +407,7 @@ anjuta_profile_manager_load_profile (AnjutaProfileManager *profile_manager,
 	g_signal_handlers_unblock_by_func (priv->plugin_manager,
 									   G_CALLBACK (on_plugin_deactivated),
 									   profile_manager);
-	g_signal_emit_by_name (profile_manager, "profile-scoped", profile);
+	g_signal_emit_by_name (profile, "scoped");
 	return TRUE;
 }
 
@@ -511,7 +473,7 @@ anjuta_profile_manager_push (AnjutaProfileManager *profile_manager,
 /**
  * anjuta_profile_manager_pop:
  * @profile_manager: the #AnjutaProfileManager object.
- * @profile_name: the name of the profile to remove.
+ * @profile: the #AnjutaProfile to remove.
  * @error: error propagation and reporting.
  * 
  * Remove a profile from the profile manager stack. If the manager is not
@@ -524,10 +486,9 @@ anjuta_profile_manager_push (AnjutaProfileManager *profile_manager,
  */
 gboolean
 anjuta_profile_manager_pop (AnjutaProfileManager *profile_manager,
-							const gchar *profile_name, GError **error)
+							AnjutaProfile *profile, GError **error)
 {
 	AnjutaProfileManagerPriv *priv;
-	AnjutaProfile *profile;
 
 	g_return_val_if_fail (ANJUTA_IS_PROFILE_MANAGER (profile_manager), FALSE);
 	priv = profile_manager->priv;
@@ -535,9 +496,7 @@ anjuta_profile_manager_pop (AnjutaProfileManager *profile_manager,
 	/* First check in the queue */
 	if (priv->profiles_queue)
 	{
-		profile = priv->profiles_queue->data;
-		g_return_val_if_fail (strcmp (anjuta_profile_get_name (profile),
-									  profile_name) == 0, FALSE);
+		g_return_val_if_fail (priv->profiles_queue->data == profile, FALSE);
 		priv->profiles_queue = g_list_remove (priv->profiles_queue, profile);
 		
 		g_signal_emit_by_name (profile_manager, "profile-popped",
@@ -550,9 +509,7 @@ anjuta_profile_manager_pop (AnjutaProfileManager *profile_manager,
 	/* Then check in the current stack */
 	if (priv->profiles)
 	{
-		profile = priv->profiles->data;
-		g_return_val_if_fail (strcmp (anjuta_profile_get_name (profile),
-									  profile_name) == 0, FALSE);
+		g_return_val_if_fail (priv->profiles->data == profile, FALSE);
 		priv->profiles = g_list_remove (priv->profiles, profile);
 		
 		g_signal_emit_by_name (profile_manager, "profile-popped",
@@ -668,7 +625,7 @@ anjuta_profile_manager_get_current (AnjutaProfileManager *profile_manager)
  * anjuta_profile_manager_close:
  * @profile_manager: A #AnjutaProfileManager object.
  *
- * Close the #AnjutaProfileManager causing "profile-descoped" to be emitted and
+ * Close the #AnjutaProfileManager causing "descoped" to be emitted and
  * all queued and previous profiles to be released. This function is to be used
  * when destroying an Anjuta instance.
  */
@@ -690,10 +647,9 @@ anjuta_profile_manager_close (AnjutaProfileManager *profile_manager)
 	{
 		AnjutaProfile *profile = ANJUTA_PROFILE (priv->profiles->data);
 
-		/* Emit "profile-descoped" so that other parts of anjuta can store
+		/* Emit "descoped" so that other parts of anjuta can store
 		 * information about the currently loaded profile. */
-		g_signal_emit_by_name (profile_manager, "profile-descoped",
-		                       profile);
+		g_signal_emit_by_name (profile, "descoped");
 
 		g_list_free_full (priv->profiles, g_object_unref);
 		priv->profiles = NULL;

@@ -1449,15 +1449,9 @@ project_manager_unload_gbf (ProjectManagerPlugin *pm_plugin)
 }
 
 static void
-on_profile_scoped (AnjutaProfileManager *profile_manager,
-				   AnjutaProfile *profile, ProjectManagerPlugin *plugin)
+on_profile_scoped (AnjutaProfile *profile, ProjectManagerPlugin *plugin)
 {
 	gchar *session_dir;
-	DEBUG_PRINT ("Profile scoped: %s", anjuta_profile_get_name (profile));
-	if (strcmp (anjuta_profile_get_name (profile), PROJECT_PROFILE_NAME) != 0)
-		return;
-
-	DEBUG_PRINT ("%s", "Project profile loaded; Restoring project session");
 
 	/* Load gbf project */
 	project_manager_load_gbf (plugin);
@@ -1482,14 +1476,8 @@ on_profile_scoped (AnjutaProfileManager *profile_manager,
 }
 
 static void
-on_profile_descoped (AnjutaProfileManager *profile_manager,
-					 AnjutaProfile *profile, ProjectManagerPlugin *plugin)
+on_profile_descoped (AnjutaProfile *profile, ProjectManagerPlugin *plugin)
 {
-	DEBUG_PRINT ("Profile descoped: %s", anjuta_profile_get_name (profile));
-
-	if (strcmp (anjuta_profile_get_name (profile), PROJECT_PROFILE_NAME) != 0)
-		return;
-
 	DEBUG_PRINT ("%s", "Project profile descoped; Saving project session");
 
 	/* Save current project session */
@@ -1520,7 +1508,8 @@ project_manager_plugin_close (ProjectManagerPlugin *plugin)
 	/* Remove project profile */
 	profile_manager =
 		anjuta_shell_get_profile_manager (ANJUTA_PLUGIN (plugin)->shell, NULL);
-	anjuta_profile_manager_pop (profile_manager, PROJECT_PROFILE_NAME, &error);
+	anjuta_profile_manager_pop (profile_manager, plugin->profile, &error);
+	plugin->profile = NULL;
 	if (error)
 	{
 		anjuta_util_dialog_error (get_plugin_parent_window (plugin),
@@ -1641,11 +1630,7 @@ project_manager_plugin_activate_plugin (AnjutaPlugin *plugin)
 					  G_CALLBACK (on_session_load), plugin);
 	profile_manager = anjuta_shell_get_profile_manager (plugin->shell, NULL);
 
-	/* Connect to profile scoping */
-	g_signal_connect (profile_manager, "profile-scoped",
-					  G_CALLBACK (on_profile_scoped), plugin);
-	g_signal_connect (profile_manager, "profile-descoped",
-					  G_CALLBACK (on_profile_descoped), plugin);
+
 	return TRUE;
 }
 
@@ -1675,12 +1660,15 @@ project_manager_plugin_deactivate_plugin (AnjutaPlugin *plugin)
 	g_signal_handlers_disconnect_by_func (G_OBJECT (plugin->shell),
 										  G_CALLBACK (on_session_load),
 										  plugin);
-	g_signal_handlers_disconnect_by_func (G_OBJECT (profile_manager),
-										  G_CALLBACK (on_profile_descoped),
-										  plugin);
-	g_signal_handlers_disconnect_by_func (G_OBJECT (profile_manager),
-										  G_CALLBACK (on_profile_scoped),
-										  plugin);
+	if (pm_plugin->profile != NULL)
+	{
+		g_signal_handlers_disconnect_by_func (G_OBJECT (pm_plugin->profile),
+		                                      G_CALLBACK (on_profile_descoped),
+		                                      plugin);
+		g_signal_handlers_disconnect_by_func (G_OBJECT (pm_plugin->profile),
+		                                      G_CALLBACK (on_profile_scoped),
+		                                      plugin);
+	}
 	/* Remove watches */
 	anjuta_plugin_remove_watch (plugin, pm_plugin->fm_watch_id, TRUE);
 	anjuta_plugin_remove_watch (plugin, pm_plugin->editor_watch_id, TRUE);
@@ -1735,6 +1723,7 @@ project_manager_plugin_instance_init (GObject *obj)
 	plugin->session_by_me = FALSE;
 	plugin->close_project_idle = -1;
 	plugin->shortcuts = NULL;
+	plugin->profile = NULL;
 }
 
 static void
@@ -2353,6 +2342,10 @@ ifile_open (IAnjutaFile *ifile, GFile* file, GError **e)
 
 		return;
 	}
+	/* Connect to profile scoping */
+	g_signal_connect (profile, "scoped", G_CALLBACK (on_profile_scoped), plugin);
+	g_signal_connect (profile, "descoped", G_CALLBACK (on_profile_descoped), plugin);
+	plugin->profile = profile;
 
 	/* Project default profile */
 	anjuta_profile_add_plugins_from_xml (profile, file, TRUE, &error);
