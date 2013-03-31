@@ -379,7 +379,7 @@ get_plugin_parent_window (ProjectManagerPlugin *plugin)
 }
 
 gboolean
-change_project_backend (ProjectManagerPlugin *plugin, AnjutaPluginDescription *backend)
+change_project_backend (ProjectManagerPlugin *plugin, AnjutaPluginHandle *backend)
 {
 	gchar *content;
 	gsize length;
@@ -421,9 +421,11 @@ change_project_backend (ProjectManagerPlugin *plugin, AnjutaPluginDescription *b
 			GFileOutputStream *stream;
 			gchar *name = NULL;
 			gchar *plugin_id = NULL;
+			AnjutaPluginDescription *desc;
 
-			anjuta_plugin_description_get_string (backend, "Anjuta Plugin", "Name", &name);
-			anjuta_plugin_description_get_string (backend, "Anjuta Plugin", "Location", &plugin_id);
+			desc = anjuta_plugin_handle_get_description (backend);
+			anjuta_plugin_description_get_string (desc, "Anjuta Plugin", "Name", &name);
+			anjuta_plugin_description_get_string (desc, "Anjuta Plugin", "Location", &plugin_id);
 
 			str = g_string_new (NULL);
 			g_string_printf (str, "<plugin name= \"%s\"\n"

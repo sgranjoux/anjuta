@@ -73,12 +73,22 @@ on_new_project_clicked (GtkButton *button, gpointer user_data)
 	AnjutaPluginManager* plugin_manager = 
 		anjuta_shell_get_plugin_manager (anjuta_plugin_get_shell (plugin),
 		                                 NULL);
-	
-	GObject* wizard = 
-		anjuta_plugin_manager_get_plugin_by_id (plugin_manager, PROJECT_WIZARD_ID);
+	GList *plugin_handles = NULL;
 
-	if (wizard)
-		ianjuta_wizard_activate (IANJUTA_WIZARD (wizard), NULL);
+	plugin_handles = anjuta_plugin_manager_query (plugin_manager,
+	                                              "Anjuta Plugin",
+	                                              "Location",
+	                                              PROJECT_WIZARD_ID,
+	                                              NULL);
+
+	if (plugin_handles != NULL)
+	{
+		GObject* wizard = 
+			anjuta_plugin_manager_get_plugin_by_handle (plugin_manager, (AnjutaPluginHandle *)plugin_handles->data);
+		if (wizard)
+			ianjuta_wizard_activate (IANJUTA_WIZARD (wizard), NULL);
+	}
+	g_list_free (plugin_handles);
 }
 
 void
@@ -88,11 +98,22 @@ on_import_project_clicked (GtkButton *button, gpointer user_data)
 	AnjutaPluginManager* plugin_manager = 
 		anjuta_shell_get_plugin_manager (anjuta_plugin_get_shell (plugin),
 		                                 NULL);
-	GObject* wizard = 
-		anjuta_plugin_manager_get_plugin_by_id (plugin_manager, PROJECT_IMPORT_ID);
+	GList *plugin_handles = NULL;
 
-	if (wizard)
-		ianjuta_wizard_activate (IANJUTA_WIZARD (wizard), NULL);
+	plugin_handles = anjuta_plugin_manager_query (plugin_manager,
+	                                              "Anjuta Plugin",
+	                                              "Location",
+	                                              PROJECT_IMPORT_ID,
+	                                              NULL);
+
+	if (plugin_handles != NULL)
+	{
+		GObject* wizard = 
+			anjuta_plugin_manager_get_plugin_by_handle (plugin_manager, (AnjutaPluginHandle *)plugin_handles->data);
+		if (wizard)
+			ianjuta_wizard_activate (IANJUTA_WIZARD (wizard), NULL);
+	}
+	g_list_free (plugin_handles);
 }
 
 static void

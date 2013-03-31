@@ -488,8 +488,8 @@ static gboolean
 dma_debugger_activate_plugin (DmaDebuggerQueue* self, const gchar *mime_type)
 {
 	AnjutaPluginManager *plugin_manager;
-	AnjutaPluginDescription *plugin;
-	GList *descs = NULL;
+	AnjutaPluginHandle *plugin;
+	GList *plugins = NULL;
 	gchar *value;
 
 	/* Get list of debugger plugins */
@@ -497,19 +497,19 @@ dma_debugger_activate_plugin (DmaDebuggerQueue* self, const gchar *mime_type)
 	if (mime_type == NULL)
 	{
 		/* User has to select the right debugger */
-		descs = anjuta_plugin_manager_query (plugin_manager,
-						"Anjuta Plugin","Interfaces", "IAnjutaDebugger", NULL);
+		plugins = anjuta_plugin_manager_query (plugin_manager,
+		                                       "Anjuta Plugin","Interfaces", "IAnjutaDebugger", NULL);
 	}
 	else
 	{
 		/* Propose only debugger supporting correct mime type */
-		descs = anjuta_plugin_manager_query (plugin_manager,
-						"Anjuta Plugin","Interfaces", "IAnjutaDebugger",
-						"File Loader", "SupportedMimeTypes", mime_type,
-						NULL);
+		plugins = anjuta_plugin_manager_query (plugin_manager,
+		                                       "Anjuta Plugin","Interfaces", "IAnjutaDebugger",
+		                                       "File Loader", "SupportedMimeTypes", mime_type,
+		                                       NULL);
 	}
 
-	if (descs == NULL)
+	if (plugins == NULL)
 	{
 		/* No plugin found */
 		anjuta_util_dialog_error (GTK_WINDOW (ANJUTA_PLUGIN (self->plugin)->shell),
@@ -517,29 +517,24 @@ dma_debugger_activate_plugin (DmaDebuggerQueue* self, const gchar *mime_type)
 			
 		return FALSE;
 	}
-	else if (g_list_length (descs) == 1)
+	else if (g_list_length (plugins) == 1)
 	{
 		/* Only one plugin found, use it */
-		plugin = (AnjutaPluginDescription *)descs->data;
+		plugin = (AnjutaPluginHandle *)plugins->data;
 	}
 	else
 	{
 		/* Ask the user to select one plugin */
 		plugin = anjuta_plugin_manager_select (plugin_manager,
-						_("Select a plugin"), 
-						_("Please select a plugin to activate"),
-						descs);
+		                                       _("Select a plugin"), 
+		                                       _("Please select a plugin to activate"),
+		                                       plugins);
 	}
 											   
 	if (plugin != NULL)
 	{
-		/* Get debugger location */
-		value = NULL;
-		anjuta_plugin_description_get_string (plugin, "Anjuta Plugin", "Location", &value);
-		g_return_val_if_fail (value != NULL, FALSE);
-
 		/* Get debugger interface */
-		self->debugger = (IAnjutaDebugger *)anjuta_plugin_manager_get_plugin_by_id (plugin_manager, value);
+		self->debugger = (IAnjutaDebugger *)anjuta_plugin_manager_get_plugin_by_handle (plugin_manager, plugin);
 
 		self->support = 0;
 		/* Check if register interface is available */
@@ -556,8 +551,6 @@ dma_debugger_activate_plugin (DmaDebuggerQueue* self, const gchar *mime_type)
 		}			
 		/* Check if variable interface is available */
 		self->support |= IANJUTA_IS_DEBUGGER_VARIABLE(self->debugger) ? HAS_VARIABLE : 0;
-		
-		g_free (value);
 
 		return TRUE;
 	}

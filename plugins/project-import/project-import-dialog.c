@@ -152,12 +152,12 @@ vcs_radio_toggled (GtkToggleButton *button, gpointer user_data)
 		gtk_widget_set_sensitive (priv->import_button, FALSE);
 }
 
-gchar *
+AnjutaPluginHandle *
 project_import_dialog_get_vcs_id (ProjectImportDialog *import_dialog)
 {
 	ProjectImportDialogPrivate *priv = GET_PRIVATE (import_dialog);
 	GtkTreeIter iter;
-	gchar *vcs_id;
+	AnjutaPluginHandle *vcs_handle;
 
 	g_assert (PROJECT_IS_IMPORT_DIALOG (import_dialog));
 	
@@ -165,9 +165,9 @@ project_import_dialog_get_vcs_id (ProjectImportDialog *import_dialog)
 		return NULL;
 
 	gtk_combo_box_get_active_iter (GTK_COMBO_BOX (priv->vcs_combo), &iter);
-	gtk_tree_model_get (GTK_TREE_MODEL (priv->vcs_store), &iter, 1, &vcs_id, -1);
+	gtk_tree_model_get (GTK_TREE_MODEL (priv->vcs_store), &iter, 1, &vcs_handle, -1);
 
-	return vcs_id;
+	return vcs_handle;
 }
 
 gchar *
@@ -224,7 +224,7 @@ project_import_dialog_new (AnjutaPluginManager *plugin_manager, const gchar *nam
 {
 	ProjectImportDialog *import_dialog;
 	ProjectImportDialogPrivate *priv;
-	GList *plugin_descs, *l_iter;
+	GList *plugin_handles, *l_iter;
 
 	import_dialog = g_object_new (PROJECT_IMPORT_TYPE_DIALOG, NULL);
 	priv = GET_PRIVATE (import_dialog);
@@ -234,23 +234,28 @@ project_import_dialog_new (AnjutaPluginManager *plugin_manager, const gchar *nam
 	if (dir)
 		gtk_file_chooser_set_file (GTK_FILE_CHOOSER (priv->source_dir_button), dir, NULL);
 
-	plugin_descs = anjuta_plugin_manager_query (plugin_manager,
-	                                            "Anjuta Plugin",
-	                                            "Interfaces",
-	                                            "IAnjutaVcs",
-	                                            NULL);
-	for (l_iter = plugin_descs; l_iter; l_iter = l_iter->next)
+	plugin_handles = anjuta_plugin_manager_query (plugin_manager,
+	                                              "Anjuta Plugin",
+	                                              "Interfaces",
+	                                              "IAnjutaVcs",
+	                                              NULL);
+	for (l_iter = plugin_handles; l_iter; l_iter = l_iter->next)
 	{
 		gchar *vcs_name, *plugin_id;
 		GtkTreeIter iter;
+		AnjutaPluginHandle *handle;
+		AnjutaPluginDescription *desc;
+
+		handle = (AnjutaPluginHandle *)l_iter->data;
+		desc = anjuta_plugin_handle_get_description (handle);
 		
-		anjuta_plugin_description_get_string (l_iter->data, "Vcs", "System",
+		anjuta_plugin_description_get_string (desc, "Vcs", "System",
 		                                      &vcs_name);
-		anjuta_plugin_description_get_string (l_iter->data, "Anjuta Plugin", "Location",
+		anjuta_plugin_description_get_string (desc, "Anjuta Plugin", "Location",
 		                                      &plugin_id);
 
 		gtk_list_store_append (priv->vcs_store, &iter);
-		gtk_list_store_set (priv->vcs_store, &iter, 0, vcs_name, 1, plugin_id, -1);
+		gtk_list_store_set (priv->vcs_store, &iter, 0, vcs_name, 1, handle, -1);
 
 		g_free (vcs_name);
 		g_free (plugin_id);
@@ -258,7 +263,7 @@ project_import_dialog_new (AnjutaPluginManager *plugin_manager, const gchar *nam
 		gtk_combo_box_set_active (GTK_COMBO_BOX (priv->vcs_combo), 0);
 	}
 	
-	g_list_free (plugin_descs);
+	g_list_free (plugin_handles);
 
 	return import_dialog;
 }

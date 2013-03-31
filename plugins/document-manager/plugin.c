@@ -1060,20 +1060,20 @@ on_support_plugin_deactivated (AnjutaPlugin* plugin, DocmanPlugin* docman_plugin
 }
 
 static GList*
-load_new_support_plugins (DocmanPlugin* docman_plugin, GList* new_plugin_ids,
+load_new_support_plugins (DocmanPlugin* docman_plugin, GList* new_plugin_handle,
 						  AnjutaPluginManager* plugin_manager)
 {
 	GList* node;
 	GList* needed_plugins = NULL;
-	for (node = new_plugin_ids; node != NULL; node = g_list_next (node))
+	for (node = new_plugin_handle; node != NULL; node = g_list_next (node))
 	{
-		gchar* plugin_id = node->data;
-		GObject* new_plugin = anjuta_plugin_manager_get_plugin_by_id (plugin_manager,
-																	  plugin_id);
+		AnjutaPluginHandle *handle = (AnjutaPluginHandle *)node->data;
+		GObject* new_plugin = anjuta_plugin_manager_get_plugin_by_handle (plugin_manager,
+		                                                                  handle);
 		GList* item = g_list_find (docman_plugin->support_plugins, new_plugin);
 		if (!item)
 		{
-			DEBUG_PRINT ("Loading plugin: %s", plugin_id);
+			DEBUG_PRINT ("Loading plugin: %s", anjuta_plugin_handle_get_id (handle));
 			g_signal_connect (new_plugin, "deactivated",
 							  G_CALLBACK (on_support_plugin_deactivated), docman_plugin);
 		}
@@ -1113,7 +1113,7 @@ update_language_plugin (AnjutaDocman *docman, IAnjutaDocument *doc,
 	{
 		AnjutaPluginManager *plugin_manager;
 		IAnjutaLanguage *lang_manager;
-		GList *new_support_plugins, *support_plugin_descs, *needed_plugins, *node;
+		GList *new_support_plugins, *needed_plugins, *node;
 		const gchar *language;
 
 		lang_manager = anjuta_shell_get_interface (plugin->shell,
@@ -1139,26 +1139,13 @@ update_language_plugin (AnjutaDocman *docman, IAnjutaDocument *doc,
 
 		/* Load current language editor support plugins */
 		plugin_manager = anjuta_shell_get_plugin_manager (plugin->shell, NULL);
-		support_plugin_descs = anjuta_plugin_manager_query (plugin_manager,
+		new_support_plugins = anjuta_plugin_manager_query (plugin_manager,
 		                                                    "Anjuta Plugin",
 		                                                    "Interfaces",
 		                                                    "IAnjutaLanguageSupport",
 		                                                    "Language Support",
 		                                                    "Languages",
 		                                                    language, NULL);
-		new_support_plugins = NULL;
-		for (node = support_plugin_descs; node != NULL; node = g_list_next (node))
-		{
-			gchar *plugin_id;
-
-			AnjutaPluginDescription *desc = node->data;
-
-			anjuta_plugin_description_get_string (desc, "Anjuta Plugin", "Location",
-			                                      &plugin_id);
-
-			new_support_plugins = g_list_append (new_support_plugins, plugin_id);
-		}
-		g_list_free (support_plugin_descs);
 
 		/* Load new plugins */
 		needed_plugins =
@@ -1172,7 +1159,7 @@ update_language_plugin (AnjutaDocman *docman, IAnjutaDocument *doc,
 		g_list_free (docman_plugin->support_plugins);
 		docman_plugin->support_plugins = needed_plugins;
 
-		anjuta_util_glist_strings_free (new_support_plugins);
+		g_list_free (new_support_plugins);
 	}
 	else
 	{

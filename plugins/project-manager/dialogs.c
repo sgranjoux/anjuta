@@ -56,7 +56,7 @@
 typedef struct _PropertiesTable
 {
 	AnjutaPmProject *project;
-	AnjutaPluginDescription *new_backend;
+	AnjutaPluginHandle *new_backend;
 	GtkWidget *dialog;
 	GtkWidget *table;
 	GtkWidget *head;
@@ -597,48 +597,45 @@ on_change_project_backend (GtkButton *button,
 {
 	PropertiesTable *table = (PropertiesTable *)user_data;
 	AnjutaPluginManager *plugin_manager;
-	GList *descs = NULL;
-	GList *desc;
-	AnjutaPluginDescription *backend;
+	GList *handles = NULL;
+	GList *node;
+	AnjutaPluginHandle *backend;
 
 	/* Search for all valid project backend */
 	plugin_manager = anjuta_shell_get_plugin_manager (ANJUTA_PLUGIN(table->project->plugin)->shell, NULL);
-	descs = anjuta_plugin_manager_query (plugin_manager,
+	handles = anjuta_plugin_manager_query (plugin_manager,
 										 "Anjuta Plugin",
 										 "Interfaces",
 										 "IAnjutaProjectBackend",
 										 NULL);	
-	for (desc = g_list_first (descs); desc != NULL;) {
+	for (node = g_list_first (handles); node != NULL;) {
 		IAnjutaProjectBackend *plugin;
-		gchar *location = NULL;
 		GList *next;
 		
-		backend = (AnjutaPluginDescription *)desc->data;
-		anjuta_plugin_description_get_string (backend, "Anjuta Plugin", "Location", &location);
-		plugin = (IAnjutaProjectBackend *)anjuta_plugin_manager_get_plugin_by_id (plugin_manager, location);
-		g_free (location);
+		backend = (AnjutaPluginHandle *)node->data;
+		plugin = (IAnjutaProjectBackend *)anjuta_plugin_manager_get_plugin_by_handle (plugin_manager, backend);
 
-		next = g_list_next (desc);
+		next = g_list_next (node);
 		
 		/* Probe the project directory to find if the backend can handle it */
 		if (ianjuta_project_backend_probe (plugin, anjuta_project_node_get_file (table->node), NULL) <= 0)
 		{
 			/* Remove invalid backend */
-			descs = g_list_delete_link (descs, desc);
+			handles = g_list_delete_link (handles, node);
 		}
 
-		desc = next;
+		node = next;
 	}
 
-	if (descs != NULL)
+	if (handles != NULL)
 	{
 		/* Move the current backend at the beginning of the list */
 		backend = anjuta_pm_project_get_backend (table->project);
-		for (desc = g_list_first (descs); desc != NULL; desc = g_list_next (desc)) {
-			if (desc->data == backend)
+		for (node = g_list_first (handles); node != NULL; node = g_list_next (node)) {
+			if (node->data == backend)
 			{
-				descs = g_list_remove_link (descs, desc);
-				descs = g_list_concat (desc, descs);
+				handles = g_list_remove_link (handles, node);
+				handles = g_list_concat (node, handles);
 				break;
 			}
 		}
@@ -647,18 +644,15 @@ on_change_project_backend (GtkButton *button,
 		gchar* message = g_strdup_printf (_("Please select a project backend to use."));
 		
 		backend = anjuta_plugin_manager_select (plugin_manager,
-		    _("Open With"),
-		    message,
-		    descs);
+		                                        _("Open With"),
+		                                        message,
+		                                        handles);
 		g_free (message);
-		g_list_free (descs);
+		g_list_free (handles);
 
 		if (backend != NULL)
 		{
-			gchar *name;
-			anjuta_plugin_description_get_locale_string (backend, "Anjuta Plugin", "Name", &name);
-			gtk_button_set_label (button, name);
-			g_free (name);
+			gtk_button_set_label (button, anjuta_plugin_handle_get_name (backend));
 			table->new_backend = backend;
 		}
 	}
@@ -734,16 +728,13 @@ update_properties (PropertiesTable *table)
 	if ((anjuta_project_node_get_node_type (table->node) == ANJUTA_PROJECT_ROOT) ||
 		((anjuta_project_node_get_full_type (table->node) & ANJUTA_PROJECT_ID_MASK) == ANJUTA_PROJECT_ROOT_GROUP))
 	{
-		AnjutaPluginDescription *backend;
+		AnjutaPluginHandle *backend;
 
 		backend = anjuta_pm_project_get_backend (table->project);
 		if (backend)
 		{
-			gchar *name;
-			
-			anjuta_plugin_description_get_locale_string (backend, "Anjuta Plugin", "Name", &name);
+			const gchar *name = anjuta_plugin_handle_get_name (backend);
 			add_button (_("Backend:"), name, G_CALLBACK (on_change_project_backend), table, table->head, &head_pos);
-			g_free (name);
 		}
 	}
 

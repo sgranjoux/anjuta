@@ -213,13 +213,13 @@ anjuta_profile_get_property (GObject *object, guint prop_id,
 
 static void
 anjuta_profile_plugin_added (AnjutaProfile *self,
-							 AnjutaPluginDescription *plugin)
+							 AnjutaPluginHandle *plugin)
 {
 }
 
 static void
 anjuta_profile_plugin_removed (AnjutaProfile *self,
-							   AnjutaPluginDescription *plugin)
+							   AnjutaPluginHandle *plugin)
 {
 }
 
@@ -289,7 +289,7 @@ anjuta_profile_class_init (AnjutaProfileClass *klass)
 	/**
 	 * AnjutaProfile::plugin-added:
 	 * @profile: a #AnjutaProfile object.
-	 * @plugin: the new plugin as a #AnjutaPluginDescription.
+	 * @plugin: the new plugin as a #AnjutaPluginHandle.
 	 * 
 	 * Emitted when a plugin is added in the list.
 	 */
@@ -306,7 +306,7 @@ anjuta_profile_class_init (AnjutaProfileClass *klass)
 	/**
 	 * AnjutaProfile::plugin-removed:
 	 * @profile: a #AnjutaProfile object.
-	 * @plugin: the removed plugin as a #AnjutaPluginDescription.
+	 * @plugin: the removed plugin as a #AnjutaPluginHandle.
 	 * 
 	 * Emitted when a plugin is removed from the list.
 	 */
@@ -437,13 +437,13 @@ anjuta_profile_get_name (AnjutaProfile *profile)
 /**
  * anjuta_profile_add_plugin:
  * @profile: a #AnjutaProfile object.
- * @plugin: a #AnjutaPluginDescription.
+ * @plugin: a #AnjutaPluginHandle.
  * 
  * Add one plugin into the profile plugin list.
  */
 void
 anjuta_profile_add_plugin (AnjutaProfile *profile,
-						   AnjutaPluginDescription *plugin)
+						   AnjutaPluginHandle *plugin)
 {
 	AnjutaProfilePriv *priv;
 	g_return_if_fail (ANJUTA_IS_PROFILE (profile));
@@ -460,13 +460,13 @@ anjuta_profile_add_plugin (AnjutaProfile *profile,
 /**
  * anjuta_profile_remove_plugin:
  * @profile: a #AnjutaProfile object.
- * @plugin: a #AnjutaPluginDescription.
+ * @plugin: a #AnjutaPluginHandle.
  * 
  * Remove one plugin from the profile plugin list.
  */
 void
 anjuta_profile_remove_plugin (AnjutaProfile *profile, 
-							  AnjutaPluginDescription *plugin)
+							  AnjutaPluginHandle *plugin)
 {
 	AnjutaProfilePriv *priv;
 	g_return_if_fail (ANJUTA_IS_PROFILE (profile));
@@ -483,7 +483,7 @@ anjuta_profile_remove_plugin (AnjutaProfile *profile,
 /**
  * anjuta_profile_has_plugin:
  * @profile: a #AnjutaProfile object
- * @plugin: a #AnjutaPluginDescription 
+ * @plugin: a #AnjutaPluginHandle 
  * 
  * Check if a plugin is included in the profile plugin list.
  *
@@ -491,7 +491,7 @@ anjuta_profile_remove_plugin (AnjutaProfile *profile,
  */
 gboolean
 anjuta_profile_has_plugin (AnjutaProfile *profile,
-						   AnjutaPluginDescription *plugin)
+						   AnjutaPluginHandle *plugin)
 {
 	AnjutaProfilePriv *priv;
 	g_return_val_if_fail (ANJUTA_IS_PROFILE (profile), FALSE);
@@ -520,10 +520,10 @@ anjuta_profile_get_plugins (AnjutaProfile *profile)
 
 static GList*
 anjuta_profile_select_plugins (AnjutaProfile *profile,
-							   GList *descs_list)
+							   GList *handles_list)
 {
 	GList *selected_plugins = NULL;
-	GList *node = descs_list;
+	GList *node = handles_list;
 	AnjutaProfilePriv *priv;
 	
 	priv = profile->priv;
@@ -537,13 +537,13 @@ anjuta_profile_select_plugins (AnjutaProfile *profile,
 		}
 		else
 		{
-			AnjutaPluginDescription* d;
-			d = anjuta_plugin_manager_select (priv->plugin_manager,
-											  _("Select a plugin"),
-											  _("Please select a plugin from the list"),
-											  descs);
-			if (d)
-				selected_plugins = g_list_prepend (selected_plugins, d);
+			AnjutaPluginHandle* handle;
+			handle = anjuta_plugin_manager_select (priv->plugin_manager,
+			                                       _("Select a plugin"),
+			                                       _("Please select a plugin from the list"),
+			                                       descs);
+			if (handle)
+				selected_plugins = g_list_prepend (selected_plugins, handle);
 		}
 		node = g_list_next (node);
 	}
@@ -558,7 +558,7 @@ anjuta_profile_read_plugins_from_xml (AnjutaProfile *profile,
 	gchar *read_buf;
 	gsize size;
 	xmlDocPtr xml_doc;
-	GList *descs_list = NULL;
+	GList *handles_list = NULL;
 	GList *not_found_names = NULL;
 	GList *not_found_urls = NULL;
 	gboolean parse_error;
@@ -666,16 +666,16 @@ anjuta_profile_read_plugins_from_xml (AnjutaProfile *profile,
 					}
 					else
 					{
-						GList *plugin_descs;
+						GList *plugin_handles;
 						
-						plugin_descs =
+						plugin_handles =
 							anjuta_plugin_manager_list_query (profile->priv->plugin_manager,
 															  groups,
 															  attribs,
 															  values);
-						if (plugin_descs)
+						if (plugin_handles)
 						{
-							descs_list = g_list_prepend (descs_list, plugin_descs);
+							handles_list = g_list_prepend (handles_list, plugin_handles);
 						}
 						else if (mandatory)
 						{
@@ -709,9 +709,9 @@ anjuta_profile_read_plugins_from_xml (AnjutaProfile *profile,
 			 		uri);
 		g_free (uri);
 		
-		g_list_foreach (descs_list, (GFunc)g_list_free, NULL);
-		g_list_free (descs_list);
-		descs_list = NULL;
+		g_list_foreach (handles_list, (GFunc)g_list_free, NULL);
+		g_list_free (handles_list);
+		handles_list = NULL;
 	}
 	else if (not_found_names)
 	{
@@ -744,16 +744,16 @@ anjuta_profile_read_plugins_from_xml (AnjutaProfile *profile,
 		g_free (uri);
 		g_string_free (mesg, TRUE);
 		
-		g_list_foreach (descs_list, (GFunc)g_list_free, NULL);
-		g_list_free (descs_list);
-		descs_list = NULL;
+		g_list_foreach (handles_list, (GFunc)g_list_free, NULL);
+		g_list_free (handles_list);
+		handles_list = NULL;
 	}
 	g_list_foreach (not_found_names, (GFunc)g_free, NULL);
 	g_list_free (not_found_names);
 	g_list_foreach (not_found_urls, (GFunc)g_free, NULL);
 	g_list_free (not_found_urls);
 
-	return descs_list;
+	return handles_list;
 }
 
 /**
@@ -774,24 +774,24 @@ anjuta_profile_add_plugins_from_xml (AnjutaProfile *profile,
 									 GError **error)
 {
 	AnjutaProfilePriv *priv;
-	GList *descs_list = NULL;
+	GList *handles_list = NULL;
 	
 	g_return_val_if_fail (ANJUTA_IS_PROFILE (profile), FALSE);
 	
 	priv = profile->priv;
-	descs_list = anjuta_profile_read_plugins_from_xml (profile, profile_xml_file, error);
+	handles_list = anjuta_profile_read_plugins_from_xml (profile, profile_xml_file, error);
 	
-	if (descs_list)
+	if (handles_list)
 	{
 		GList *selected_plugins = NULL;
 		GList *node;
 		
 		/* Now everything okay. Select the plugins */
-		descs_list = g_list_reverse (descs_list);
+		handles_list = g_list_reverse (handles_list);
 		selected_plugins =
-			anjuta_profile_select_plugins (profile, descs_list);
-		g_list_foreach (descs_list, (GFunc)g_list_free, NULL);
-		g_list_free (descs_list);
+			anjuta_profile_select_plugins (profile, handles_list);
+		g_list_foreach (handles_list, (GFunc)g_list_free, NULL);
+		g_list_free (handles_list);
 		
 		node = selected_plugins;
 		while (node)
@@ -814,7 +814,7 @@ anjuta_profile_add_plugins_from_xml (AnjutaProfile *profile,
 		g_list_free (selected_plugins);
 	}
 	
-	return descs_list != NULL;
+	return handles_list != NULL;
 }
 
 /**
@@ -838,6 +838,7 @@ anjuta_profile_to_xml (AnjutaProfile *profile)
 	str = g_string_new ("<?xml version=\"1.0\"?>\n<anjuta>\n");
 	for (node = priv->plugins; node != NULL; node = g_list_next (node))
 	{
+		AnjutaPluginHandle *handle;
 		AnjutaPluginDescription *desc;
 		gboolean user_activatable = TRUE;
 		gchar *name = NULL, *plugin_id = NULL;
@@ -847,8 +848,8 @@ anjuta_profile_to_xml (AnjutaProfile *profile)
 			/* Do not save plugin in the exclude list */
 			continue;
 		}
-			
-		desc = (AnjutaPluginDescription *)node->data;
+		handle = (AnjutaPluginHandle *)node->data;
+		desc = anjuta_plugin_handle_get_description(handle);
 		if (anjuta_plugin_description_get_boolean (desc, "Anjuta Plugin",
 												  "UserActivatable", &user_activatable)
 				&& !user_activatable)

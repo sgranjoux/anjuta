@@ -289,7 +289,7 @@ void
 about_create_plugins_submenu (AnjutaShell *shell, GtkWidget *menuitem)
 {
 	GtkWidget *submenu;
-	GList *plugin_descs, *node;
+	GList *plugin_handles, *node;
 
 	g_return_if_fail (ANJUTA_IS_SHELL (shell));
 	g_return_if_fail (GTK_IS_MENU_ITEM (menuitem));
@@ -298,15 +298,16 @@ about_create_plugins_submenu (AnjutaShell *shell, GtkWidget *menuitem)
 	gtk_widget_show (submenu);
 	gtk_menu_item_set_submenu (GTK_MENU_ITEM (menuitem), submenu);
 
-	plugin_descs =
+	plugin_handles =
 		anjuta_plugin_manager_query (anjuta_shell_get_plugin_manager (shell, NULL),
 									 NULL, NULL, NULL, NULL);
-	node = plugin_descs;
+	node = plugin_handles;
 	while (node)
 	{
 		gchar *label;
 		GtkWidget *item;
-		AnjutaPluginDescription *desc = node->data;
+		AnjutaPluginHandle *handle = (AnjutaPluginHandle *)node->data;
+		AnjutaPluginDescription *desc = anjuta_plugin_handle_get_description (handle);
 		if (anjuta_plugin_description_get_locale_string (desc, "Anjuta Plugin",
 														 "Name", &label))
 		{
@@ -332,4 +333,5 @@ about_create_plugins_submenu (AnjutaShell *shell, GtkWidget *menuitem)
 		}
 		node = g_list_next (node);
 	}
+	g_list_free (plugin_handles);
 }

@@ -172,26 +172,23 @@ get_vcs_plugin(AnjutaFileManager* file_manager, const gchar* root_uri)
 	{
 		/* Load current language editor support plugins */
 		AnjutaPluginManager* plugin_manager = anjuta_shell_get_plugin_manager (ANJUTA_PLUGIN(file_manager)->shell, NULL);
-		GList* plugin_descs = anjuta_plugin_manager_query (plugin_manager,
+		GList* plugin_handles = anjuta_plugin_manager_query (plugin_manager,
 														   "Anjuta Plugin",
 														   "Interfaces",
 														   "IAnjutaVcs",
 														   "Vcs",
 														   "System",
 														   vcs_system, NULL);
-		if (plugin_descs)
+		if (plugin_handles)
 		{
-			gchar* plugin_id;
-			anjuta_plugin_description_get_string (plugin_descs->data, "Anjuta Plugin", "Location",
-													  &plugin_id);
-			ivcs = IANJUTA_VCS(anjuta_plugin_manager_get_plugin_by_id (plugin_manager,
-																	   plugin_id));
+			ivcs = IANJUTA_VCS(anjuta_plugin_manager_get_plugin_by_handle (plugin_manager,
+			                                                               (AnjutaPluginHandle *)plugin_handles->data));
 
 			g_signal_connect (G_OBJECT (ivcs), "status_changed",
 			                  G_CALLBACK (refresh_signal_cb),
 			                  file_manager);
 			
-			g_list_free (plugin_descs);
+			g_list_free (plugin_handles);
 		}
 	}
 	return ivcs;

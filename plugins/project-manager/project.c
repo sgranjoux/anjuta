@@ -120,17 +120,14 @@ on_node_changed (IAnjutaProject *sender, AnjutaProjectNode *node, GError *error,
  *---------------------------------------------------------------------------*/
 
 gboolean
-anjuta_pm_project_load_with_backend (AnjutaPmProject *project, GFile *file, AnjutaPluginDescription *backend, GError **error)
+anjuta_pm_project_load_with_backend (AnjutaPmProject *project, GFile *file, AnjutaPluginHandle *backend, GError **error)
 {
 	AnjutaPluginManager *plugin_manager;
-	gchar *location = NULL;
 	IAnjutaProjectBackend *plugin;
 	GValue value = {0, };
 
-	anjuta_plugin_description_get_string (backend, "Anjuta Plugin", "Location", &location);
 	plugin_manager = anjuta_shell_get_plugin_manager (project->plugin->shell, NULL);
-	plugin = (IAnjutaProjectBackend *)anjuta_plugin_manager_get_plugin_by_id (plugin_manager, location);
-	g_free (location);
+	plugin = (IAnjutaProjectBackend *)anjuta_plugin_manager_get_plugin_by_handle (plugin_manager, backend);
 
 	
 	DEBUG_PRINT ("%s", "Creating new gbf project\n");
@@ -184,7 +181,7 @@ anjuta_pm_project_load (AnjutaPmProject *project, GFile *file, GError **error)
 	AnjutaPluginManager *plugin_manager;
 	GList *desc;
 	IAnjutaProjectBackend *backend;
-	AnjutaPluginDescription *backend_desc;
+	AnjutaPluginHandle *backend_handle;
 	gint found = 0;
 
 	g_return_val_if_fail (file != NULL, FALSE);
@@ -194,23 +191,20 @@ anjuta_pm_project_load (AnjutaPmProject *project, GFile *file, GError **error)
 
 	if (!anjuta_plugin_manager_is_active_plugin (plugin_manager, "IAnjutaProjectBackend"))
 	{
-		GList *descs = NULL;
+		GList *handles = NULL;
 
-		descs = anjuta_plugin_manager_query (plugin_manager,
+		handles = anjuta_plugin_manager_query (plugin_manager,
 											 "Anjuta Plugin",
 											 "Interfaces",
 											 "IAnjutaProjectBackend",
 											 NULL);
 		backend = NULL;
-		for (desc = g_list_first (descs); desc != NULL; desc = g_list_next (desc)) {
-			gchar *location = NULL;
+		for (desc = g_list_first (handles); desc != NULL; desc = g_list_next (desc)) {
 			IAnjutaProjectBackend *plugin;
 			gint backend_val;
 
-			backend_desc = (AnjutaPluginDescription *)desc->data;
-			anjuta_plugin_description_get_string (backend_desc, "Anjuta Plugin", "Location", &location);
-			plugin = (IAnjutaProjectBackend *)anjuta_plugin_manager_get_plugin_by_id (plugin_manager, location);
-			g_free (location);
+			backend_handle = (AnjutaPluginHandle *)desc->data;
+			plugin = (IAnjutaProjectBackend *)anjuta_plugin_manager_get_plugin_by_handle (plugin_manager, backend_handle);
 
 			backend_val = ianjuta_project_backend_probe (plugin, file, NULL);
 			if (backend_val > found)
@@ -220,7 +214,7 @@ anjuta_pm_project_load (AnjutaPmProject *project, GFile *file, GError **error)
 				found = backend_val;
 			}
 		}
-		g_list_free (descs);
+		g_list_free (handles);
 	}
 	else
 	{
@@ -239,9 +233,9 @@ anjuta_pm_project_load (AnjutaPmProject *project, GFile *file, GError **error)
 		return FALSE;
 	}
 	
-	backend_desc = anjuta_plugin_manager_get_plugin_description (plugin_manager, G_OBJECT(backend));
+	backend_handle = anjuta_plugin_manager_get_plugin_handle (plugin_manager, G_OBJECT(backend));
 
-	return anjuta_pm_project_load_with_backend (project, file, backend_desc, error);
+	return anjuta_pm_project_load_with_backend (project, file, backend_handle, error);
 }
 
 gboolean
@@ -418,7 +412,7 @@ anjuta_pm_project_is_open (AnjutaPmProject *project)
 	return (project->project != NULL) && (project->root != NULL);
 }
 
-AnjutaPluginDescription *
+AnjutaPluginHandle *
 anjuta_pm_project_get_backend (AnjutaPmProject *project)
 {
 	return project->backend;

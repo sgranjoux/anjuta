@@ -23,7 +23,7 @@
 
 #include <glib-object.h>
 #include <libanjuta/anjuta-status.h>
-#include <libanjuta/anjuta-plugin-description.h>
+#include <libanjuta/anjuta-plugin-handle.h>
 
 G_BEGIN_DECLS
 
@@ -57,10 +57,10 @@ struct _AnjutaPluginManagerClass
 
 	/* Signals */
 	void(* plugin_activated) (AnjutaPluginManager *self,
-							  AnjutaPluginDescription* plugin_desc,
+							  AnjutaPluginHandle* handle,
 							  GObject *plugin);
 	void(* plugin_deactivated) (AnjutaPluginManager *self,
-								AnjutaPluginDescription* plugin_desc,
+								AnjutaPluginHandle* handle,
 								GObject *plugin);
 };
 
@@ -81,12 +81,12 @@ gboolean anjuta_plugin_manager_is_active_plugin (AnjutaPluginManager *plugin_man
 								  const gchar *iface_name);
 GObject* anjuta_plugin_manager_get_plugin (AnjutaPluginManager *plugin_manager,
 										   const gchar *iface_name);
-GObject* anjuta_plugin_manager_get_plugin_by_id (AnjutaPluginManager *plugin_manager,
-												 const gchar *plugin_id);
+GObject* anjuta_plugin_manager_get_plugin_by_handle (AnjutaPluginManager *plugin_manager,
+                                                     AnjutaPluginHandle *handle);
 gboolean anjuta_plugin_manager_unload_plugin (AnjutaPluginManager *plugin_manager,
-											  GObject *plugin);
-gboolean anjuta_plugin_manager_unload_plugin_by_id (AnjutaPluginManager *plugin_manager,
-													const gchar *plugin_id);
+											  GObject *plugin_object);
+gboolean anjuta_plugin_manager_unload_plugin_by_handle (AnjutaPluginManager *plugin_manager,
+                                                        AnjutaPluginHandle *handle);
 GList* anjuta_plugin_manager_get_active_plugins (AnjutaPluginManager *plugin_manager);
 GList* anjuta_plugin_manager_get_active_plugin_objects (AnjutaPluginManager *plugin_manager);
 
@@ -107,20 +107,20 @@ GList* anjuta_plugin_manager_list_query (AnjutaPluginManager *plugin_manager,
 										 GList *attribute_values);
 
 /* Returns the plugin description that has been selected from the list */
-AnjutaPluginDescription* anjuta_plugin_manager_select (AnjutaPluginManager *plugin_manager,
-													   gchar *title, gchar *description,
-													   GList *plugin_descriptions);
+AnjutaPluginHandle* anjuta_plugin_manager_select (AnjutaPluginManager *plugin_manager,
+                                                  gchar *title, gchar *description,
+                                                  GList *plugin_handles);
 
 GObject*  anjuta_plugin_manager_select_and_activate (AnjutaPluginManager *plugin_manager,
-													   gchar *title, gchar *description,
-			   GList *plugin_descriptions);
+                                                     gchar *title, gchar *description,
+                                                     GList *plugin_handles);
 
-AnjutaPluginDescription* anjuta_plugin_manager_get_plugin_description (AnjutaPluginManager *plugin_manager,
-																	   GObject *plugin);
+AnjutaPluginHandle* anjuta_plugin_manager_get_plugin_handle (AnjutaPluginManager *plugin_manager,
+                                                             GObject *plugin);
 
 
 void anjuta_plugin_manager_activate_plugins (AnjutaPluginManager *plugin_manager,
-											 GList *plugin_descs);
+                                             GList *plugin_handles);
 
 void anjuta_plugin_manager_unload_all_plugins (AnjutaPluginManager *plugin_manager);
 

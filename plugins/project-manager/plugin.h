@@ -88,7 +88,7 @@ struct _ProjectManagerPluginClass{
 };
 
 GtkWindow* get_plugin_parent_window (ProjectManagerPlugin *plugin);
-gboolean change_project_backend (ProjectManagerPlugin *plugin, AnjutaPluginDescription *backend);
+gboolean change_project_backend (ProjectManagerPlugin *plugin, AnjutaPluginHandle *backend);
 
 
 #endif

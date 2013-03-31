@@ -42,17 +42,19 @@
 static gpointer parent_class;
 
 static gboolean
-project_import_generate_file (AnjutaPluginDescription *backend, ProjectImportDialog *import_dialog,
+project_import_generate_file (AnjutaPluginHandle *backend, ProjectImportDialog *import_dialog,
                               GFile *project_file)
 {
 	/* Of course we could do some more intelligent stuff here
 	 * and check which plugins are really needed */
-	
+
+	AnjutaPluginDescription *desc;
 	GFile* source_file = NULL;
 	gchar *backend_id = NULL;
 	GError* error = NULL;
 
-	if (!anjuta_plugin_description_get_string (backend, "Project", "Supported-Project-Types", &backend_id))
+	desc = anjuta_plugin_handle_get_description (backend);
+	if (!anjuta_plugin_description_get_string (desc, "Project", "Supported-Project-Types", &backend_id))
 	{
 		if (!strcmp (backend_id, "automake"))
 			source_file = g_file_new_for_path (AM_PROJECT_FILE);
@@ -160,8 +162,8 @@ project_import_generate_file (AnjutaPluginDescription *backend, ProjectImportDia
 				gchar *name = NULL;
 				gchar *plugin_id = NULL;
 
-				anjuta_plugin_description_get_string (backend, "Anjuta Plugin", "Name", &name);
-				anjuta_plugin_description_get_string (backend, "Anjuta Plugin", "Location", &plugin_id);
+				anjuta_plugin_description_get_string (desc, "Anjuta Plugin", "Name", &name);
+				anjuta_plugin_description_get_string (desc, "Anjuta Plugin", "Location", &plugin_id);
 
 				str = g_string_new (NULL);
 				g_string_printf (str, "<plugin name= \"%s\"\n"
@@ -237,47 +239,44 @@ project_import_import_project (AnjutaProjectImportPlugin *import_plugin, Project
                                GFile *source_dir)
 {
 	AnjutaPluginManager *plugin_manager;
-	GList *descs = NULL;
-	GList *desc;
-	AnjutaPluginDescription *backend;
+	GList *handles = NULL;
+	GList *node;
+	AnjutaPluginHandle *backend;
 	gchar *name, *project_file_name;
 
 	/* Search for all valid project backend */
 	plugin_manager = anjuta_shell_get_plugin_manager (ANJUTA_PLUGIN(import_plugin)->shell, NULL);
-	descs = anjuta_plugin_manager_query (plugin_manager,
-										 "Anjuta Plugin",
-										 "Interfaces",
-										 "IAnjutaProjectBackend",
-										 NULL);	
-	for (desc = g_list_first (descs); desc != NULL;) {
+	handles = anjuta_plugin_manager_query (plugin_manager,
+	                                       "Anjuta Plugin",
+	                                       "Interfaces",
+	                                       "IAnjutaProjectBackend",
+	                                       NULL);	
+	for (node = g_list_first (handles); node != NULL;) {
 		IAnjutaProjectBackend *plugin;
-		gchar *location = NULL;
 		GList *next;
 		
-		backend = (AnjutaPluginDescription *)desc->data;
-		anjuta_plugin_description_get_string (backend, "Anjuta Plugin", "Location", &location);
-		plugin = (IAnjutaProjectBackend *)anjuta_plugin_manager_get_plugin_by_id (plugin_manager, location);
-		g_free (location);
+		backend = (AnjutaPluginHandle *)node->data;
+		plugin = (IAnjutaProjectBackend *)anjuta_plugin_manager_get_plugin_by_handle (plugin_manager, backend);
 
-		next = g_list_next (desc);
+		next = g_list_next (node);
 		
 		/* Probe the project directory to find if the backend can handle it */
 		if (ianjuta_project_backend_probe (plugin, source_dir, NULL) <= 0)
 		{
 			/* Remove invalid backend */
-			descs = g_list_delete_link (descs, desc);
+			handles = g_list_delete_link (handles, node);
 		}
 
-		desc = next;
+		node = next;
 	}
 
-	if (descs == NULL)
+	if (handles == NULL)
 	{
 		backend = NULL;
 	}
-	else if (g_list_next (descs) == NULL)
+	else if (g_list_next (handles) == NULL)
 	{
-		backend =  (AnjutaPluginDescription *)descs->data;
+		backend =  (AnjutaPluginHandle *)handles->data;
 	}
 	else
 	{
@@ -287,13 +286,13 @@ project_import_import_project (AnjutaProjectImportPlugin *import_plugin, Project
 		
 		g_free (path);
 		
-        backend = anjuta_plugin_manager_select (plugin_manager,
-		    _("Open With"),
-		    message,
-		    descs);
+		backend = anjuta_plugin_manager_select (plugin_manager,
+		                                        _("Open With"),
+		                                        message,
+		                                        handles);
 		g_free (message);
 	}
-	g_list_free (descs);
+	g_list_free (handles);
 
 	if (backend == NULL)
 	{
@@ -392,7 +391,8 @@ project_import_checkout_project (AnjutaProjectImportPlugin *import_plugin,
 {
 	CheckoutData *ch_data;
 	AnjutaAsyncNotify *async_notify;
-	gchar *vcs_uri, *plugin_id, *name;
+	AnjutaPluginHandle *plugin_handle;
+	gchar *vcs_uri, *name;
 	GFile *dest_dir, *checkout_dir;
 	AnjutaPluginManager *plugin_manager;
 	IAnjutaVcs *ivcs;
@@ -415,10 +415,10 @@ project_import_checkout_project (AnjutaProjectImportPlugin *import_plugin,
 	                  ch_data);
 
 	vcs_uri = project_import_dialog_get_vcs_uri (import_dialog);
-	plugin_id = project_import_dialog_get_vcs_id (import_dialog);
+	plugin_handle = project_import_dialog_get_vcs_id (import_dialog);
 
 	plugin_manager = anjuta_shell_get_plugin_manager (ANJUTA_PLUGIN (import_plugin)->shell, NULL);
-	ivcs = IANJUTA_VCS (anjuta_plugin_manager_get_plugin_by_id (plugin_manager, plugin_id));
+	ivcs = IANJUTA_VCS (anjuta_plugin_manager_get_plugin_by_handle (plugin_manager, plugin_handle));
 
 	err = NULL;
 	ianjuta_vcs_checkout (ivcs, vcs_uri, checkout_dir, NULL, async_notify, &err);
@@ -439,7 +439,6 @@ project_import_checkout_project (AnjutaProjectImportPlugin *import_plugin,
 
 cleanup:
 	g_free (vcs_uri);
-	g_free (plugin_id);
 }
 
 static void

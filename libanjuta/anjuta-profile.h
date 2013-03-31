@@ -23,7 +23,7 @@
 
 #include <glib-object.h>
 #include <gio/gio.h>
-#include <libanjuta/anjuta-plugin-description.h>
+#include <libanjuta/anjuta-plugin-handle.h>
 #include <libanjuta/anjuta-plugin-manager.h>
 
 G_BEGIN_DECLS
@@ -68,9 +68,9 @@ struct _AnjutaProfileClass
 
 	/* Signals */
 	void(* plugin_added) (AnjutaProfile *self,
-						  AnjutaPluginDescription *plugin);
+						  AnjutaPluginHandle *plugin);
 	void(* plugin_removed) (AnjutaProfile *self,
-							AnjutaPluginDescription *plugin);
+							AnjutaPluginHandle *plugin);
 	void(* changed) (AnjutaProfile *self, GList *plugins);
 	void(* descoped) (AnjutaProfile *self);
 	void(* scoped) (AnjutaProfile *self);
@@ -94,15 +94,15 @@ AnjutaProfile* anjuta_profile_new (const gchar *name,
 								   AnjutaPluginManager *plugin_manager);
 const gchar *anjuta_profile_get_name (AnjutaProfile *profile);
 void anjuta_profile_add_plugin (AnjutaProfile *profile,
-								AnjutaPluginDescription *plugin);
+								AnjutaPluginHandle *plugin);
 void anjuta_profile_remove_plugin (AnjutaProfile *profile,
-								   AnjutaPluginDescription *plugin);
+								   AnjutaPluginHandle *plugin);
 gboolean anjuta_profile_add_plugins_from_xml (AnjutaProfile *profile,
 											  GFile* profile_xml_file,
 											  gboolean exclude_from_sync,
 											  GError **error);
 gboolean anjuta_profile_has_plugin (AnjutaProfile *profile,
-									AnjutaPluginDescription *plugin);
+									AnjutaPluginHandle *plugin);
 GList* anjuta_profile_get_plugins (AnjutaProfile *profile);
 
 void anjuta_profile_set_sync_file (AnjutaProfile *profile,

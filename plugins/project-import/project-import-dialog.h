@@ -29,6 +29,7 @@
 #include <glib-object.h>
 
 #include <libanjuta/anjuta-plugin.h>
+#include <libanjuta/anjuta-plugin-handle.h>
 
 G_BEGIN_DECLS
 
@@ -62,7 +63,7 @@ GFile *project_import_dialog_get_source_dir (ProjectImportDialog *import_dialog)
 
 GFile *project_import_dialog_get_dest_dir (ProjectImportDialog *import_dialog);
 gchar * project_import_dialog_get_vcs_uri (ProjectImportDialog *import_dialog);
-gchar *project_import_dialog_get_vcs_id (ProjectImportDialog *import_dialog);
+AnjutaPluginHandle *project_import_dialog_get_vcs_id (ProjectImportDialog *import_dialog);
 
 G_END_DECLS
 

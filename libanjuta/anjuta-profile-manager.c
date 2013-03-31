@@ -71,7 +71,7 @@ static guint profile_manager_signals[LAST_SIGNAL] = { 0 };
 
 static void
 on_plugin_activated (AnjutaPluginManager *plugin_manager,
-					 AnjutaPluginDescription *plugin_desc,
+					 AnjutaPluginHandle *plugin_handle,
 					 GObject *plugin_object,
 					 AnjutaProfileManager *profile_manager)
 {
@@ -82,18 +82,20 @@ on_plugin_activated (AnjutaPluginManager *plugin_manager,
 	{
 		/* Add it current profile */
 		gboolean exclude;
+		AnjutaPluginDescription *desc;
 
-		if (!anjuta_plugin_description_get_boolean (plugin_desc, "Anjuta Plugin", "ExcludeFromSession", &exclude) || !exclude)
+		desc = anjuta_plugin_handle_get_description (plugin_handle);
+		if (!anjuta_plugin_description_get_boolean (desc, "Anjuta Plugin", "ExcludeFromSession", &exclude) || !exclude)
 		{
 			anjuta_profile_add_plugin (ANJUTA_PROFILE (priv->profiles->data),
-									   plugin_desc);
+									   plugin_handle);
 		}
 	}
 }
 
 static void
 on_plugin_deactivated (AnjutaPluginManager *plugin_manager,
-					   AnjutaPluginDescription *plugin_desc,
+					   AnjutaPluginHandle *plugin_handle,
 					   GObject *plugin_object,
 					   AnjutaProfileManager *profile_manager)
 {
@@ -104,7 +106,7 @@ on_plugin_deactivated (AnjutaPluginManager *plugin_manager,
 	{
 		/* Remove from current profile */
 		anjuta_profile_remove_plugin (ANJUTA_PROFILE (priv->profiles->data),
-									  plugin_desc);
+									  plugin_handle);
 	}
 }
 
@@ -359,18 +361,11 @@ anjuta_profile_manager_load_profile (AnjutaProfileManager *profile_manager,
 	node = plugins_to_deactivate;
 	while (node)
 	{
-		AnjutaPluginDescription *desc;
-		gchar *plugin_id = NULL;
+		AnjutaPluginHandle *handle;
 		
-		desc = (AnjutaPluginDescription *)node->data;
-		anjuta_plugin_description_get_string (desc, "Anjuta Plugin",
-											  "Location", &plugin_id);
-		g_assert (plugin_id != NULL);
-		
-		/* DEBUG_PRINT ("Profile: deactivating %s", plugin_id); */
-		
-		anjuta_plugin_manager_unload_plugin_by_id (priv->plugin_manager,
-		                                           plugin_id);
+		handle = (AnjutaPluginHandle *)node->data;
+		anjuta_plugin_manager_unload_plugin_by_handle (priv->plugin_manager,
+		                                               handle);
 		node = g_list_next (node);
 	}
 	

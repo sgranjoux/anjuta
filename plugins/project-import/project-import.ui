@@ -5,8 +5,8 @@
     <columns>
       <!-- column-name gchararray1 -->
       <column type="gchararray"/>
-      <!-- column-name gchararray2 -->
-      <column type="gchararray"/>
+      <!-- column-name gpointer2 -->
+      <column type="gpointer"/>
     </columns>
   </object>
   <object class="GtkWindow" id="window1">

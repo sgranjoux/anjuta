@@ -26,7 +26,7 @@
 #include <glib-object.h>
 #include <libanjuta/anjuta-plugin.h>
 #include <libanjuta/anjuta-project.h>
-#include <libanjuta/anjuta-plugin-description.h>
+#include <libanjuta/anjuta-plugin-handle.h>
 #include <libanjuta/interfaces/ianjuta-project.h>
 
 #include "project-model.h"
@@ -58,7 +58,7 @@ struct _AnjutaPmProject
 	AnjutaPlugin *plugin;
 
 	IAnjutaProject *project;
-	AnjutaPluginDescription *backend;
+	AnjutaPluginHandle *backend;
 
 	AnjutaProjectNode *root;
 
@@ -78,7 +78,7 @@ AnjutaPmProject* anjuta_pm_project_new (AnjutaPlugin *plugin);
 void anjuta_pm_project_free (AnjutaPmProject* project);
 
 gboolean anjuta_pm_project_load (AnjutaPmProject *project, GFile *file, GError **error);
-gboolean anjuta_pm_project_load_with_backend (AnjutaPmProject *project, GFile *file, AnjutaPluginDescription *backend, GError **error);
+gboolean anjuta_pm_project_load_with_backend (AnjutaPmProject *project, GFile *file, AnjutaPluginHandle *backend, GError **error);
 gboolean anjuta_pm_project_unload (AnjutaPmProject *project, GError **error);
 gboolean anjuta_pm_project_refresh (AnjutaPmProject *project, GError **error);
 
@@ -96,7 +96,7 @@ gboolean anjuta_pm_project_remove_data (AnjutaPmProject *project, GbfTreeData *d
 
 
 gboolean anjuta_pm_project_is_open (AnjutaPmProject *project);
-AnjutaPluginDescription *anjuta_pm_project_get_backend (AnjutaPmProject *project);
+AnjutaPluginHandle *anjuta_pm_project_get_backend (AnjutaPmProject *project);
 
 IAnjutaProject *anjuta_pm_project_get_project (AnjutaPmProject *project);
 GbfProjectModel *anjuta_pm_project_get_model (AnjutaPmProject *project);
