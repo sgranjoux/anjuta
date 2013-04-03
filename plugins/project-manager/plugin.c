@@ -43,7 +43,7 @@
 #define UI_FILE PACKAGE_DATA_DIR "/ui/anjuta-project-manager.xml"
 #define PREFS_GLADE PACKAGE_DATA_DIR "/glade/anjuta-project-manager-plugin.ui"
 #define ICON_FILE "anjuta-project-manager-plugin-48.png"
-#define DEFAULT_PROFILE "file://"PACKAGE_DATA_DIR "/profiles/default.profile"
+#define DEFAULT_PROFILE "default.profile"
 #define PROJECT_PROFILE_NAME "project"
 
 #define INT_TO_GBOOLEAN(i) ((i) ? TRUE : FALSE)
@@ -1524,7 +1524,6 @@ project_manager_plugin_close (ProjectManagerPlugin *plugin)
 static gboolean
 project_manager_plugin_activate_plugin (AnjutaPlugin *plugin)
 {
-	AnjutaProfileManager *profile_manager;
 	GtkWidget *scrolled_window;
 	GtkWidget *view;
 	static gboolean initialized = FALSE;
@@ -1630,7 +1629,6 @@ project_manager_plugin_activate_plugin (AnjutaPlugin *plugin)
 					  G_CALLBACK (on_session_save), plugin);
 	g_signal_connect (G_OBJECT (plugin->shell), "load_session",
 					  G_CALLBACK (on_session_load), plugin);
-	profile_manager = anjuta_shell_get_profile_manager (plugin->shell, NULL);
 
 
 	return TRUE;
@@ -1639,7 +1637,6 @@ project_manager_plugin_activate_plugin (AnjutaPlugin *plugin)
 static gboolean
 project_manager_plugin_deactivate_plugin (AnjutaPlugin *plugin)
 {
-	AnjutaProfileManager *profile_manager;
 	ProjectManagerPlugin *pm_plugin;
 	pm_plugin = ANJUTA_PLUGIN_PROJECT_MANAGER (plugin);
 
@@ -1652,8 +1649,6 @@ project_manager_plugin_deactivate_plugin (AnjutaPlugin *plugin)
 	/* Close project if it's open */
 	if (pm_plugin->project_root_uri)
 		project_manager_plugin_close (pm_plugin);
-
-	profile_manager = anjuta_shell_get_profile_manager (plugin->shell, NULL);
 
 	/* Disconnect signals */
 	g_signal_handlers_disconnect_by_func (G_OBJECT (plugin->shell),
@@ -2297,9 +2292,8 @@ ifile_open (IAnjutaFile *ifile, GFile* file, GError **e)
 	AnjutaProfileManager *profile_manager;
 	AnjutaPluginManager *plugin_manager;
 	AnjutaStatus *status;
-	gchar *session_profile_path, *profile_name;
+	gchar *session_profile_path;
 	GFile *session_profile;
-	GFile *default_profile;
 	GFile *project_root;
 	GFile *tmp;
 	ProjectManagerPlugin *plugin;
@@ -2330,32 +2324,17 @@ ifile_open (IAnjutaFile *ifile, GFile* file, GError **e)
 	/* Prepare profile */
 	profile = anjuta_profile_new (PROJECT_PROFILE_NAME, plugin_manager);
 
-	/* System default profile */
-	default_profile = g_file_new_for_uri (DEFAULT_PROFILE);
-	anjuta_profile_add_plugins_from_xml (profile, default_profile,
-										 TRUE, &error);
-	profile_name = g_file_get_basename (default_profile);
-	g_object_unref (default_profile);
-	if (error)
-	{
-		g_propagate_error (e, error);
-		g_free (profile_name);
-		g_object_unref (profile);
-
-		return;
-	}
 	/* Connect to profile scoping */
 	g_signal_connect (profile, "scoped", G_CALLBACK (on_profile_scoped), plugin);
 	g_signal_connect (profile, "descoped", G_CALLBACK (on_profile_descoped), plugin);
 	plugin->profile = profile;
 
 	/* Project default profile */
-	anjuta_profile_add_plugins_from_xml (profile, file, TRUE, &error);
+	anjuta_profile_add_plugins_from_xml (profile, file, TRUE, FALSE, &error);
 	if (error)
 	{
 		g_propagate_error (e, error);
 
-		g_free (profile_name);
 		g_object_unref (profile);
 
 		return;
@@ -2364,16 +2343,15 @@ ifile_open (IAnjutaFile *ifile, GFile* file, GError **e)
 	/* Project session profile */
 	project_root = g_file_get_parent (file);
 	tmp = g_file_get_child (project_root, ".anjuta");
-	session_profile = g_file_get_child (tmp, profile_name);
+	session_profile = g_file_get_child (tmp, DEFAULT_PROFILE);
 	g_object_unref (tmp);
-	g_free (profile_name);
 
 	session_profile_path = g_file_get_path (session_profile);
 	DEBUG_PRINT ("Loading project session profile: %s", session_profile_path);
 	if (g_file_query_exists (session_profile, NULL))
 	{
 		anjuta_profile_add_plugins_from_xml (profile, session_profile,
-											 FALSE, &error);
+											 FALSE, FALSE, &error);
 		if (error)
 		{
 			g_propagate_error (e, error);

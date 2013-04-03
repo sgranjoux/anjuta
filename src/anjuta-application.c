@@ -592,7 +592,7 @@ anjuta_application_create_window (AnjutaApplication *app)
 	profile = anjuta_profile_new (USER_PROFILE_NAME, plugin_manager);
 	session_profile = g_file_new_for_uri (DEFAULT_PROFILE);
 	anjuta_profile_add_plugins_from_xml (profile, session_profile,
-										 TRUE, &error);
+										 TRUE, TRUE, &error);
 	if (error)
 	{
 		anjuta_util_dialog_error (GTK_WINDOW (win), "%s", error->message);
@@ -607,7 +607,7 @@ anjuta_application_create_window (AnjutaApplication *app)
 	if (g_file_query_exists (session_profile, NULL))
 	{
 		anjuta_profile_add_plugins_from_xml (profile, session_profile,
-											 FALSE, &error);
+											 FALSE, FALSE, &error);
 		if (error)
 		{
 			anjuta_util_dialog_error (GTK_WINDOW (win), "%s", error->message);

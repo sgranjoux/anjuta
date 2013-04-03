@@ -761,6 +761,7 @@ anjuta_profile_read_plugins_from_xml (AnjutaProfile *profile,
  * @profile: a #AnjutaProfile object.
  * @profile_xml_file: xml file containing plugin list.
  * @exclude_from_sync: TRUE if these plugins shouldn't be saved in user session.
+ * @core_plugin: %TRUE if these plugins should never be unloaded.
  * @error: error propagation and reporting.
  * 
  * Add all plugins inscribed in the xml file into the profile plugin list.
@@ -769,9 +770,10 @@ anjuta_profile_read_plugins_from_xml (AnjutaProfile *profile,
  */
 gboolean
 anjuta_profile_add_plugins_from_xml (AnjutaProfile *profile,
-									 GFile* profile_xml_file,
-									 gboolean exclude_from_sync,
-									 GError **error)
+                                     GFile* profile_xml_file,
+                                     gboolean exclude_from_sync,
+                                     gboolean core_plugin,
+                                     GError **error)
 {
 	AnjutaProfilePriv *priv;
 	GList *handles_list = NULL;
@@ -796,6 +798,7 @@ anjuta_profile_add_plugins_from_xml (AnjutaProfile *profile,
 		node = selected_plugins;
 		while (node)
 		{
+			anjuta_plugin_handle_set_core_plugin ((AnjutaPluginHandle *)node->data, core_plugin);
 			if (exclude_from_sync)
 			{
 				g_hash_table_insert (priv->plugins_to_exclude_from_sync,

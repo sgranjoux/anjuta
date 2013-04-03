@@ -348,10 +348,12 @@ anjuta_profile_manager_load_profile (AnjutaProfileManager *profile_manager,
 	node = active_plugins;
 	while (node)
 	{
-		if (!g_hash_table_lookup (plugins_to_activate_hash, node->data))
+		AnjutaPluginHandle *handle = (AnjutaPluginHandle *)node->data;
+		if (!anjuta_plugin_handle_is_core_plugin (handle) &&
+		    !g_hash_table_lookup (plugins_to_activate_hash, handle))
 		{
 			plugins_to_deactivate = g_list_prepend (plugins_to_deactivate,
-													node->data);
+													handle);
 		}
 		node = g_list_next (node);
 	}
@@ -374,9 +376,12 @@ anjuta_profile_manager_load_profile (AnjutaProfileManager *profile_manager,
 	node = selected_plugins;
 	while (node)
 	{
+		AnjutaPluginHandle *handle = (AnjutaPluginHandle *)node->data;
 		if (!g_hash_table_lookup (active_plugins_hash, node->data))
+		{
 			plugins_to_activate = g_list_prepend (plugins_to_activate,
-												   node->data);
+			                                      handle);
+		}
 		node = g_list_next (node);
 	}
 	

@@ -66,12 +66,15 @@ GList* anjuta_plugin_handle_get_interfaces (AnjutaPluginHandle *plugin_handle);
 gboolean anjuta_plugin_handle_get_can_load (AnjutaPluginHandle *plugin_handle);
 gboolean anjuta_plugin_handle_get_checked (AnjutaPluginHandle *plugin_handle);
 gint anjuta_plugin_handle_get_resolve_pass (AnjutaPluginHandle *plugin_handle);
+gboolean anjuta_plugin_handle_is_core_plugin (AnjutaPluginHandle *plugin_handle);
 void anjuta_plugin_handle_set_can_load (AnjutaPluginHandle *plugin_handle,
-										gboolean can_load);
+                                        gboolean can_load);
 void anjuta_plugin_handle_set_checked (AnjutaPluginHandle *plugin_handle,
-									   gboolean checked);
+                                       gboolean checked);
 void anjuta_plugin_handle_set_resolve_pass (AnjutaPluginHandle *plugin_handle,
-											gboolean resolve_pass);
+                                            gboolean resolve_pass);
+void anjuta_plugin_handle_set_core_plugin (AnjutaPluginHandle *plugin_handle,
+                                           gboolean is_core_plugin);
 void anjuta_plugin_handle_unresolve_dependencies (AnjutaPluginHandle *plugin_handle);
 
 G_END_DECLS

@@ -67,6 +67,7 @@ struct _AnjutaPluginHandlePriv
 	char *path;
 	gboolean user_activatable;
 	gboolean resident;
+	gboolean core;
 	char *language;
 	
 	AnjutaPluginDescription *description;
@@ -101,6 +102,7 @@ anjuta_plugin_handle_init (AnjutaPluginHandle *object)
 	object->priv = g_new0 (AnjutaPluginHandlePriv, 1);
 
 	object->priv->resolve_pass = -1;
+	object->priv->core = FALSE;
 
 	object->priv->dependencies = g_hash_table_new (g_direct_hash, 
 												   g_direct_equal);
@@ -687,6 +689,13 @@ anjuta_plugin_handle_get_resolve_pass (AnjutaPluginHandle *plugin_handle)
 	return plugin_handle->priv->resolve_pass;
 }
 
+gboolean
+anjuta_plugin_handle_is_core_plugin (AnjutaPluginHandle *plugin_handle)
+{
+	g_return_val_if_fail (ANJUTA_IS_PLUGIN_HANDLE (plugin_handle), 0);
+	return plugin_handle->priv->core;
+}
+
 void
 anjuta_plugin_handle_set_can_load (AnjutaPluginHandle *plugin_handle,
 								   gboolean can_load)
@@ -709,6 +718,14 @@ anjuta_plugin_handle_set_resolve_pass (AnjutaPluginHandle *plugin_handle,
 {
 	g_return_if_fail (ANJUTA_IS_PLUGIN_HANDLE (plugin_handle));
 	plugin_handle->priv->resolve_pass = resolve_pass;
+}
+
+void
+anjuta_plugin_handle_set_core_plugin (AnjutaPluginHandle *plugin_handle,
+                                      gboolean is_core)
+{
+	g_return_if_fail (ANJUTA_IS_PLUGIN_HANDLE (plugin_handle));
+	plugin_handle->priv->core = is_core;
 }
 
 void

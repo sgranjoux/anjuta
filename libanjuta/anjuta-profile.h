@@ -98,9 +98,10 @@ void anjuta_profile_add_plugin (AnjutaProfile *profile,
 void anjuta_profile_remove_plugin (AnjutaProfile *profile,
 								   AnjutaPluginHandle *plugin);
 gboolean anjuta_profile_add_plugins_from_xml (AnjutaProfile *profile,
-											  GFile* profile_xml_file,
-											  gboolean exclude_from_sync,
-											  GError **error);
+                                              GFile* profile_xml_file,
+                                              gboolean exclude_from_sync,
+                                              gboolean core_plugin,
+                                              GError **error);
 gboolean anjuta_profile_has_plugin (AnjutaProfile *profile,
 									AnjutaPluginHandle *plugin);
 GList* anjuta_profile_get_plugins (AnjutaProfile *profile);
