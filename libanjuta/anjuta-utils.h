@@ -148,6 +148,7 @@ void		anjuta_util_help_display				(GtkWidget   *parent,
 													const gchar *item);
 
 /* XDG BaseDir specifcation functions */
+void		anjuta_util_set_anjuta_prefix			(const gchar* name);
 GFile*		anjuta_util_get_user_data_file			(const gchar* path, ...);
 GFile*		anjuta_util_get_user_cache_file			(const gchar* path, ...);
 GFile*		anjuta_util_get_user_config_file		(const gchar* path, ...);

@@ -39,15 +39,18 @@
 #define ANJUTA_SESSION_SKIP_LAST "session-skip-last"
 #define ANJUTA_SESSION_SKIP_LAST_FILES "session-skip-last-files"
 
-#define DEFAULT_PROFILE "file://"PACKAGE_DATA_DIR"/profiles/default.profile"
+#define PROFILE_DIRECTORY "file://"PACKAGE_DATA_DIR"/profiles"
 #define USER_PROFILE_NAME "user"
 
 #define ANJUTA_PIXMAP_SPLASH_SCREEN       "anjuta_splash.png"
 
-#define ANJUTA_GEOMETRY_HINT "-g="
-#define ANJUTA_NO_SPLASH_HINT "-s"
-#define ANJUTA_NO_SESSION_HINT "-n"
-#define ANJUTA_NO_FILES_HINT "-f"
+#define ANJUTA_GEOMETRY_HINT ";g="
+#define ANJUTA_PROFILE_HINT ";P="
+#define ANJUTA_NO_SPLASH_HINT ";s"
+#define ANJUTA_NO_SESSION_HINT ";n"
+#define ANJUTA_NO_FILES_HINT ";f"
+
+static gchar DEFAULT_PROFILE[] = "default.profile";
 
 G_DEFINE_TYPE (AnjutaApplication, anjuta_application, GTK_TYPE_APPLICATION)
 
@@ -57,6 +60,7 @@ struct _AnjutaApplicationPrivate {
 	gboolean no_files;
 	gboolean no_session;
 	gchar *geometry;
+	gchar *profile;
 };
 
 static gboolean
@@ -197,7 +201,8 @@ static gchar *
 create_anjuta_application_hint (const gchar *geometry,
                                 gboolean no_splash,
                                 gboolean no_session,
-                                gboolean no_files)
+                                gboolean no_files,
+                                const gchar *profile)
 {
 	GString *hint;
 
@@ -210,7 +215,12 @@ create_anjuta_application_hint (const gchar *geometry,
 	if (no_splash) g_string_append (hint,ANJUTA_NO_SPLASH_HINT);
 	if (no_session) g_string_append (hint,ANJUTA_NO_SESSION_HINT);
 	if (no_files) g_string_append (hint,ANJUTA_NO_FILES_HINT);
-	g_string_append_c(hint, '-');
+	if (profile != NULL)
+	{
+		g_string_append (hint, ANJUTA_PROFILE_HINT);
+		g_string_append_uri_escaped (hint, profile, NULL, FALSE);
+	}
+	g_string_append_c(hint, ';');
 
 	return g_string_free (hint, FALSE);
 }
@@ -221,13 +231,14 @@ anjuta_application_parse_hint (AnjutaApplication *app,
                                const gchar* hint)
 {
 	const gchar *geometry;
+	const gchar *profile;
 
 	g_free (app->priv->geometry);
 	app->priv->geometry = NULL;
 	geometry = strstr(hint, ANJUTA_GEOMETRY_HINT);
 	if (geometry != NULL)
 	{
-		const gchar *end = strstr(geometry + 1, "-");
+		const gchar *end = strstr(geometry + 1, ";");
 
 		if (end != NULL)
 		{
@@ -235,9 +246,22 @@ anjuta_application_parse_hint (AnjutaApplication *app,
 			app->priv->geometry = g_strndup (geometry, end - geometry);
 		}
 	}
-	app->priv->no_splash = strstr(hint, ANJUTA_NO_SPLASH_HINT "-") != NULL ? TRUE : FALSE;
-	app->priv->no_session = strstr(hint, ANJUTA_NO_SESSION_HINT "-") != NULL ? TRUE : FALSE;
-	app->priv->no_files = strstr(hint, ANJUTA_NO_FILES_HINT "-") != NULL ? TRUE : FALSE;
+	app->priv->no_splash = strstr(hint, ANJUTA_NO_SPLASH_HINT ";") != NULL ? TRUE : FALSE;
+	app->priv->no_session = strstr(hint, ANJUTA_NO_SESSION_HINT ";") != NULL ? TRUE : FALSE;
+	app->priv->no_files = strstr(hint, ANJUTA_NO_FILES_HINT ";") != NULL ? TRUE : FALSE;
+	g_free (app->priv->profile);
+	app->priv->profile = NULL;
+	profile = strstr(hint, ANJUTA_PROFILE_HINT);
+	if (profile != NULL)
+	{
+		const gchar *end = strstr(profile + 1, ";");
+
+		if (end != NULL)
+		{
+			profile += strlen (ANJUTA_PROFILE_HINT);
+			app->priv->profile = g_uri_unescape_segment (profile, end, NULL);
+		}
+	}
 }
 
 static void
@@ -266,6 +290,7 @@ anjuta_application_local_command_line (GApplication *application,
 	gboolean no_files = FALSE;
 	gboolean version = FALSE;
 	gchar *geometry = NULL;
+	gchar *profile = NULL;
 	gchar **filenames = NULL;
 
 	const GOptionEntry anjuta_options[] = {
@@ -314,6 +339,12 @@ anjuta_application_local_command_line (GApplication *application,
 			NULL
 		},
 		{
+			"profile", 'P', 0, G_OPTION_ARG_STRING,
+			&profile,
+			N_("Specify another profile"),
+			N_("profile file")
+		},
+		{
 			G_OPTION_REMAINING, 0, 0, G_OPTION_ARG_FILENAME_ARRAY,
 			&filenames,
 			NULL,
@@ -359,6 +390,12 @@ anjuta_application_local_command_line (GApplication *application,
 		return TRUE;
 	}
 
+	/* Set application prefix */
+	if (profile != NULL)
+	{
+		anjuta_util_set_anjuta_prefix (profile);
+	}
+
 	/* Register application */
 	if (no_client) g_application_set_flags (application, G_APPLICATION_NON_UNIQUE | g_application_get_flags (application));
 	g_application_register (G_APPLICATION (application), NULL, NULL);
@@ -378,7 +415,7 @@ anjuta_application_local_command_line (GApplication *application,
 	}
 
 	/* Create hint string */
-	hint = create_anjuta_application_hint (geometry, no_splash, no_session, no_files);
+	hint = create_anjuta_application_hint (geometry, no_splash, no_session, no_files, profile);
 
 	/* Open files */
 	g_application_open (application, (GFile **)files->pdata, files->len, hint);
@@ -540,9 +577,10 @@ anjuta_application_create_window (AnjutaApplication *app)
 	AnjutaWindow *win;
 	AnjutaStatus *status;
 	AnjutaProfile *profile;
+	gchar *profile_filename;
+	GFile *profile_directory;
 	GFile *session_profile;
 	gchar *remembered_plugins;
-	gchar *profile_name = NULL;
 	GError *error = NULL;
 
 	/* Initialize application */
@@ -589,35 +627,40 @@ anjuta_application_create_window (AnjutaApplication *app)
 	g_free (remembered_plugins);
 
 	/* Prepare profile */
+	
 	profile = anjuta_profile_new (USER_PROFILE_NAME, plugin_manager);
-	session_profile = g_file_new_for_uri (DEFAULT_PROFILE);
+	profile_filename = app->priv->profile == NULL ? DEFAULT_PROFILE : g_strconcat(app->priv->profile, ".profile", NULL);
+	profile_directory = g_file_new_for_uri (PROFILE_DIRECTORY);
+	session_profile = g_file_get_child(profile_directory, profile_filename);
+	g_object_unref(profile_directory);
 	anjuta_profile_add_plugins_from_xml (profile, session_profile,
 										 TRUE, TRUE, &error);
 	if (error)
 	{
-		anjuta_util_dialog_error (GTK_WINDOW (win), "%s", error->message);
+		anjuta_util_dialog_error (GTK_WINDOW (win), _("Invalid profile %s: %s"), g_file_get_path (session_profile), error->message);
 		g_error_free (error);
-		error = NULL;
 	}
 	g_object_unref (session_profile);
 
 	/* Load user session profile */
-	profile_name = g_path_get_basename (DEFAULT_PROFILE);
-	session_profile = anjuta_util_get_user_cache_file (profile_name, NULL);
-	if (g_file_query_exists (session_profile, NULL))
+	if (error == NULL)
 	{
-		anjuta_profile_add_plugins_from_xml (profile, session_profile,
-											 FALSE, FALSE, &error);
-		if (error)
+		session_profile = anjuta_util_get_user_cache_file (profile_filename, NULL);
+		if (g_file_query_exists (session_profile, NULL))
 		{
-			anjuta_util_dialog_error (GTK_WINDOW (win), "%s", error->message);
-			g_error_free (error);
-			error = NULL;
+			anjuta_profile_add_plugins_from_xml (profile, session_profile,
+											 FALSE, FALSE, &error);
+			if (error)
+			{
+				anjuta_util_dialog_error (GTK_WINDOW (win), "%s", error->message);
+				g_error_free (error);
+			}
 		}
+		anjuta_profile_set_sync_file (profile, session_profile);
+		g_object_unref (session_profile);
 	}
-	anjuta_profile_set_sync_file (profile, session_profile);
-	g_object_unref (session_profile);
-	g_free (profile_name);
+	error = NULL;
+	if (profile_filename != DEFAULT_PROFILE) g_free (profile_filename);
 
 	/* Load profile */
 	anjuta_profile_manager_freeze (profile_manager);

@@ -61,6 +61,8 @@
 
 #define FILE_BUFFER_SIZE 1024
 
+static gchar *anjuta_prefix = "anjuta";
+
 static void
 anjuta_util_from_file_to_file (GInputStream *istream,
 							   GOutputStream *ostream)
@@ -2149,6 +2151,12 @@ anjuta_util_str_middle_truncate (const gchar *string,
  *
  */
 
+void
+anjuta_util_set_anjuta_prefix (const gchar *prefix)
+{
+	anjuta_prefix = g_strdup (prefix);
+}
+
 static gchar*
 anjuta_util_construct_pathv (const gchar* str, va_list str_list)
 {
@@ -2183,7 +2191,6 @@ anjuta_util_get_user_cache_filev (const gchar* path, va_list list)
 {
 	gchar *uri_str, *base_path, *dir;
 	GFile *uri;
-	const gchar anjuta_prefix[] = "anjuta";
 	base_path = g_build_filename (g_get_user_cache_dir(), anjuta_prefix, path, NULL);
 
 	uri_str = anjuta_util_construct_pathv (base_path, list);
@@ -2210,7 +2217,6 @@ anjuta_util_get_user_config_filev (const gchar* path, va_list list)
 {
 	gchar *uri_str, *base_path, *dir;
 	GFile *uri;
-	const gchar anjuta_prefix[] = "anjuta";
 	base_path = g_build_filename (g_get_user_config_dir(), anjuta_prefix, path, NULL);
 
 	uri_str = anjuta_util_construct_pathv (base_path, list);
@@ -2237,7 +2243,6 @@ anjuta_util_get_user_data_filev (const gchar* path, va_list list)
 {
 	gchar *uri_str, *base_path, *dir;
 	GFile *uri;
-	const gchar anjuta_prefix[] = "anjuta";
 	base_path = g_build_filename (g_get_user_data_dir(), anjuta_prefix, path, NULL);
 
 	uri_str = anjuta_util_construct_pathv (base_path, list);
