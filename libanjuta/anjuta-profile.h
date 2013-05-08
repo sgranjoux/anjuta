@@ -110,6 +110,9 @@ void anjuta_profile_set_sync_file (AnjutaProfile *profile,
 								  GFile *sync_file);
 gboolean anjuta_profile_sync (AnjutaProfile *profile, GError **error);
 
+gboolean anjuta_profile_load (AnjutaProfile *profile);
+gboolean anjuta_profile_unload (AnjutaProfile *profile);
+
 G_END_DECLS
 
 #endif /* _ANJUTA_PROFILE_H_ */

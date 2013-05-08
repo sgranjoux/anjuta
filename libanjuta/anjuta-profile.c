@@ -399,6 +399,33 @@ anjuta_profile_get_type (void)
 	return our_type;
 }
 
+static void
+on_plugin_activated (AnjutaPluginManager *plugin_manager,
+					 AnjutaPluginHandle *plugin_handle,
+					 GObject *plugin_object,
+					 AnjutaProfile *profile)
+{
+	/* Add it current profile */
+	gboolean exclude;
+	AnjutaPluginDescription *desc;
+
+	desc = anjuta_plugin_handle_get_description (plugin_handle);
+	if (!anjuta_plugin_description_get_boolean (desc, "Anjuta Plugin", "ExcludeFromSession", &exclude) || !exclude)
+	{
+		anjuta_profile_add_plugin (profile, plugin_handle);
+	}
+}
+
+static void
+on_plugin_deactivated (AnjutaPluginManager *plugin_manager,
+					   AnjutaPluginHandle *plugin_handle,
+					   GObject *plugin_object,
+					   AnjutaProfile *profile)
+{
+	/* Remove from current profile */
+	anjuta_profile_remove_plugin (profile, plugin_handle);
+}
+
 /**
  * anjuta_profile_new:
  * @name: the new profile name.
@@ -958,4 +985,154 @@ anjuta_profile_sync (AnjutaProfile *profile, GError **error)
 	if (file_error != NULL) g_propagate_error (error, file_error);
 	
 	return ok;
+}
+
+/**
+ * anjuta_profile_load:
+ * @profile: a #AnjutaProfile object.
+ * 
+ * Load the profile
+ *
+ * Return value: TRUE on success, FALSE otherwise.
+ */
+gboolean
+anjuta_profile_load (AnjutaProfile *profile)
+{
+	AnjutaProfilePriv *priv;
+	GList *active_plugins, *node;
+	GList *plugins_to_activate, *plugins_to_deactivate;
+	GList *selected_plugins;
+	GHashTable *active_plugins_hash, *plugins_to_activate_hash;
+
+	priv = profile->priv;
+
+	/* Prepare plugins to activate */
+	plugins_to_activate_hash = g_hash_table_new (g_direct_hash, g_direct_equal);
+	
+	/* Select plugins in the profile */
+	if (profile)
+		selected_plugins = anjuta_profile_get_plugins (profile);
+	else
+		selected_plugins = NULL;
+	
+	node = selected_plugins;
+	while (node)
+	{
+		g_hash_table_insert (plugins_to_activate_hash, node->data, node->data);
+		node = g_list_next (node);
+	}
+	
+	/* Prepare active plugins hash */
+	active_plugins =
+		anjuta_plugin_manager_get_active_plugins (priv->plugin_manager);
+	active_plugins_hash = g_hash_table_new (g_direct_hash, g_direct_equal);
+	node = active_plugins;
+	while (node)
+	{
+		g_hash_table_insert (active_plugins_hash, node->data, node->data);
+		node = g_list_next (node);
+	}
+	
+	plugins_to_deactivate = NULL;
+	
+	/* Prepare plugins to deactiveate that are already active, but are
+	 * not requested to be active
+	 */
+	node = active_plugins;
+	while (node)
+	{
+		AnjutaPluginHandle *handle = (AnjutaPluginHandle *)node->data;
+		if (!anjuta_plugin_handle_is_core_plugin (handle) &&
+		    !g_hash_table_lookup (plugins_to_activate_hash, handle))
+		{
+			plugins_to_deactivate = g_list_prepend (plugins_to_deactivate,
+													handle);
+		}
+		node = g_list_next (node);
+	}
+	plugins_to_deactivate = g_list_reverse (plugins_to_deactivate);
+
+	/* Deactivate plugins */
+	node = plugins_to_deactivate;
+	while (node)
+	{
+		AnjutaPluginHandle *handle;
+		
+		handle = (AnjutaPluginHandle *)node->data;
+		anjuta_plugin_manager_unload_plugin_by_handle (priv->plugin_manager,
+		                                               handle);
+		node = g_list_next (node);
+	}
+	
+	/* Prepare the plugins to activate */
+	plugins_to_activate = NULL;
+	node = selected_plugins;
+	while (node)
+	{
+		AnjutaPluginHandle *handle = (AnjutaPluginHandle *)node->data;
+		if (!g_hash_table_lookup (active_plugins_hash, node->data))
+		{
+			plugins_to_activate = g_list_prepend (plugins_to_activate,
+			                                      handle);
+		}
+		node = g_list_next (node);
+	}
+	
+	/* Now activate the plugins */
+	if (plugins_to_activate)
+	{
+		/* Activate them */
+		plugins_to_activate = g_list_reverse (plugins_to_activate);
+		anjuta_plugin_manager_activate_plugins (priv->plugin_manager,
+												plugins_to_activate);
+	}
+	
+	g_list_free (plugins_to_activate);
+	g_list_free (active_plugins);
+	
+	g_hash_table_destroy (plugins_to_activate_hash);
+	g_hash_table_destroy (active_plugins_hash);
+
+	/* Enable profile synchronization */
+	g_signal_connect (priv->plugin_manager, "plugin-activated",
+	                  G_CALLBACK (on_plugin_activated), profile);
+	g_signal_connect (priv->plugin_manager, "plugin-deactivated",
+	                  G_CALLBACK (on_plugin_deactivated), profile);
+
+	g_signal_emit_by_name (profile, "scoped");
+
+
+	return TRUE;
+}
+
+/**
+ * anjuta_profile_load:
+ * @profile: a #AnjutaProfile object.
+ * 
+ * Unload the profile
+ *
+ * Return value: TRUE on success, FALSE otherwise.
+ */
+gboolean
+anjuta_profile_unload (AnjutaProfile *profile)
+{
+	AnjutaProfilePriv *priv;
+
+
+	/* Disable profile synchronization while the profile is being activated */
+	priv = profile->priv;
+	g_signal_handlers_disconnect_by_func (priv->plugin_manager,
+	                                      G_CALLBACK (on_plugin_activated),
+	                                      profile);
+	g_signal_handlers_disconnect_by_func (priv->plugin_manager,
+	                                      G_CALLBACK (on_plugin_deactivated),
+	                                      profile);
+
+	/* Emit pre-change for the last profile */
+	if (profile)
+	{
+		g_signal_emit_by_name (profile, "descoped");
+	}
+
+	return FALSE;
 }
