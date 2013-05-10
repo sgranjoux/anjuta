@@ -5,3 +5,6 @@ Location=anjuta-loader:AnjutaFileLoaderPlugin
 Icon=anjuta-loader-plugin-48.png
 Interfaces=IAnjutaFileLoader
 UserActivatable=no
+
+[Anjuta Profile]
+Editor=yes

@@ -5,3 +5,6 @@ _Name=GtkSourceView editor
 _Description=The default editor based on GtkSourceView
 Interfaces=IAnjutaEditorFactory
 UserActivatable=no
+
+[Anjuta Profile]
+Editor=yes

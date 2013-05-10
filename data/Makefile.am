@@ -11,7 +11,8 @@ anjuta_profiledir = $(anjuta_data_dir)/profiles
 
 anjuta_data_DATA = welcome.txt
 
-anjuta_profile_DATA = default.profile
+anjuta_profile_DATA = default.profile \
+                      editor.profile
 
 EXTRA_DIST = $(anjuta_data_DATA) $(anjuta_profile_DATA)
 

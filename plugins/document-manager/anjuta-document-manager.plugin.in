@@ -9,3 +9,6 @@ UserActivatable=no
 
 [File Loader]
 SupportedMimeTypes=text/*,text/source,application/x-perl,application/x-python,application/x-shellscript,application/x-php,application/x-java,application/x-javascript,application/x-ruby,application/x-m4,application/x-reject,application/xml,application/xslt+xml,text/html,application/javascript,application/x-extension-wsgi
+
+[Anjuta Profile]
+Editor=yes
