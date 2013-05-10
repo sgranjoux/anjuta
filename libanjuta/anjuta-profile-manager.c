@@ -245,10 +245,8 @@ anjuta_profile_manager_load_profile (AnjutaProfileManager *profile_manager,
 									 AnjutaProfile *previous_profile,
 									 GError **error)
 {
-	if (previous_profile != NULL) anjuta_profile_unload (previous_profile);
-	anjuta_profile_load (profile);
-
-	return TRUE;
+	if (previous_profile != NULL) anjuta_profile_unload (previous_profile, NULL);
+	return anjuta_profile_load (profile, error);
 }
 
 static gboolean
@@ -484,7 +482,7 @@ anjuta_profile_manager_close (AnjutaProfileManager *profile_manager)
 
 		/* Emit "descoped" so that other parts of anjuta can store
 		 * information about the currently loaded profile. */
-		anjuta_profile_unload (profile);
+		anjuta_profile_unload (profile, NULL);
 
 		g_list_free_full (priv->profiles, g_object_unref);
 		priv->profiles = NULL;

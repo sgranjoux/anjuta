@@ -88,6 +88,9 @@ struct _AnjutaPluginManagerPriv
 	
 	/* Remember plugin selection */
 	GHashTable   *remember_plugins;
+	
+	/* disable plugins */
+	GHashTable   *disable_plugins;
 };
 
 /* Available plugins page treeview */
@@ -957,9 +960,10 @@ populate_plugin_model (AnjutaPluginManager *plugin_manager,
 				enable = TRUE;
 			
 			if (anjuta_plugin_handle_get_name (plugin) &&
-				anjuta_plugin_handle_get_description (plugin) &&
-				(anjuta_plugin_handle_get_user_activatable (plugin) ||
-				 show_all))
+			    anjuta_plugin_handle_get_description (plugin) &&
+			    (anjuta_plugin_handle_get_user_activatable (plugin) ||
+			     show_all) &&
+			    (g_hash_table_lookup (plugin_manager->priv->disable_plugins, plugin) == NULL))
 			{
 				GtkTreeIter iter;
 				gchar *text;
@@ -1473,13 +1477,29 @@ anjuta_plugin_manager_get_plugin (AnjutaPluginManager *plugin_manager,
 			return obj;
 		node = g_list_next (node);
 	}
+
+	/* Filter disable plugins */
+	valid_plugins = g_list_copy (valid_plugins);
+	node = valid_plugins;
+	while (node)
+	{
+		GList *next = g_list_next (node);
+		
+		if (g_hash_table_lookup (priv->disable_plugins, node->data) != NULL)
+		{
+			valid_plugins = g_list_delete_link (valid_plugins, node);
+		}
+		node = next;
+	}
 	
 	/* If no plugin is installed yet, do something */
-	if (valid_plugins && g_list_length (valid_plugins) == 1)
+	if (valid_plugins &&
+	    (g_list_length (valid_plugins) == 1))
 	{
 		/* If there is just one plugin, consider it selected */
 		GObject *obj;
 		plugin = valid_plugins->data;
+		g_list_free (valid_plugins);
 		
 		/* Install and return it */
 		plugin_set_update (plugin_manager, plugin, TRUE);
@@ -1491,20 +1511,11 @@ anjuta_plugin_manager_get_plugin (AnjutaPluginManager *plugin_manager,
 	{
 		/* Prompt the user to select one of these plugins */
 		GObject *obj;
-		GList *handles = NULL;
-		node = valid_plugins;
-		while (node)
-		{
-			plugin = node->data;
-			handles = g_list_prepend (handles, plugin);
-			node = g_list_next (node);
-		}
-		handles = g_list_reverse (handles);
 		obj = anjuta_plugin_manager_select_and_activate (plugin_manager,
 									  dgettext (GETTEXT_PACKAGE, "Select a plugin"),
 									  dgettext (GETTEXT_PACKAGE, "<b>Please select a plugin to activate</b>"),
-									  handles);
-		g_list_free (handles);
+									  valid_plugins);
+		g_list_free (valid_plugins);
 		return obj;
 	}
 	
@@ -1690,7 +1701,8 @@ anjuta_plugin_manager_list_query (AnjutaPluginManager *plugin_manager,
 		while (available)
 		{
 			AnjutaPluginHandle *plugin = available->data;
-			selected_plugins = g_list_prepend (selected_plugins, plugin);
+			if (g_hash_table_lookup (plugin_manager->priv->disable_plugins, plugin) == NULL)
+				selected_plugins = g_list_prepend (selected_plugins, plugin);
 			available = g_list_next (available);
 		}
 		return g_list_reverse (selected_plugins);
@@ -1700,7 +1712,7 @@ anjuta_plugin_manager_list_query (AnjutaPluginManager *plugin_manager,
 	g_return_val_if_fail (anames != NULL, NULL);
 	g_return_val_if_fail (avalues != NULL, NULL);
 	
-	while (available)
+	for (;available; available = g_list_next (available))
 	{
 		GList* s_node = secs;
 		GList* n_node = anames;
@@ -1712,6 +1724,9 @@ anjuta_plugin_manager_list_query (AnjutaPluginManager *plugin_manager,
 		AnjutaPluginDescription *desc =
 			anjuta_plugin_handle_get_description (plugin);
 		
+		if (g_hash_table_lookup (plugin_manager->priv->disable_plugins, plugin) != NULL)
+			continue;
+
 		while (s_node)
 		{
 			gchar *val;
@@ -1786,7 +1801,6 @@ anjuta_plugin_manager_list_query (AnjutaPluginManager *plugin_manager,
 			/* DEBUG_PRINT ("Satisfied, Adding %s",
 						 anjuta_plugin_handle_get_name (plugin));*/
 		}
-		available = g_list_next (available);
 	}
 	
 	return g_list_reverse (selected_plugins);
@@ -2211,6 +2225,8 @@ anjuta_plugin_manager_init (AnjutaPluginManager *object)
 	object->priv->remember_plugins = g_hash_table_new_full (g_str_hash,
 															g_str_equal,
 															NULL, NULL);
+	object->priv->disable_plugins = g_hash_table_new (g_direct_hash,
+	                                                  g_direct_equal);
 }
 
 static void
@@ -2234,6 +2250,11 @@ anjuta_plugin_manager_dispose (GObject *object)
 	{
 		g_hash_table_destroy (priv->plugins_cache);
 		priv->plugins_cache = NULL;
+	}
+	if (priv->disable_plugins)
+	{
+		g_hash_table_destroy (priv->disable_plugins);
+		priv->disable_plugins = NULL;
 	}
 	if (priv->plugins_by_name)
 	{
@@ -2642,4 +2663,36 @@ anjuta_plugin_manager_set_remembered_plugins (AnjutaPluginManager *plugin_manage
 		line_idx++;
 	}
 	g_strfreev (strv_lines);
+}
+
+/**
+ * anjuta_plugin_manager_set_disable_plugins:
+ * @plugin_manager: A #AnjutaPluginManager object
+ * @plugins_list: A list of plugins to disable or reenable
+ * @hide: %TRUE to disable, %FALSE to re-enable plugins in the list
+ * 
+ * Disable or re-enable plugins. By default, all plugins are enabled but they
+ * can be disabled and they will not be proposed when a plugin is requested.
+ */
+void
+anjuta_plugin_manager_set_disable_plugins (AnjutaPluginManager *plugin_manager,
+                                           GList *plugin_handles,
+                                           gboolean disable)
+{
+	GList *item;
+
+	if (disable)
+	{
+		for (item = g_list_first (plugin_handles); item != NULL; item = g_list_next (item))
+		{
+			g_hash_table_add (plugin_manager->priv->disable_plugins, item->data);
+		}
+	}
+	else
+	{
+		for (item = g_list_first (plugin_handles); item != NULL; item = g_list_next (item))
+		{
+			g_hash_table_remove (plugin_manager->priv->disable_plugins, item->data);
+		}
+	}
 }

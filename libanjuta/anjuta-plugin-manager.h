@@ -127,6 +127,9 @@ void anjuta_plugin_manager_unload_all_plugins (AnjutaPluginManager *plugin_manag
 gchar* anjuta_plugin_manager_get_remembered_plugins (AnjutaPluginManager *plugin_manager);
 void anjuta_plugin_manager_set_remembered_plugins (AnjutaPluginManager *plugin_manager,
 												   const gchar *remembered_plugins);
+void anjuta_plugin_manager_set_disable_plugins (AnjutaPluginManager *plugin_manager,
+                                                GList *plugin_handles,
+                                                gboolean disable);
 
 /**
  * anjuta_plugin_manager_get_interface:

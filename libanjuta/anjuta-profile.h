@@ -55,7 +55,8 @@ G_BEGIN_DECLS
 typedef enum
 {
 	ANJUTA_PROFILE_ERROR_URI_READ_FAILED,
-	ANJUTA_PROFILE_ERROR_URI_WRITE_FAILED
+	ANJUTA_PROFILE_ERROR_URI_WRITE_FAILED,
+	ANJUTA_PROFILE_ERROR_PLUGIN_MISSING
 } AnjutaProfileError;
 
 typedef struct _AnjutaProfileClass AnjutaProfileClass;
@@ -71,7 +72,7 @@ struct _AnjutaProfileClass
 						  AnjutaPluginHandle *plugin);
 	void(* plugin_removed) (AnjutaProfile *self,
 							AnjutaPluginHandle *plugin);
-	void(* changed) (AnjutaProfile *self, GList *plugins);
+	void(* changed) (AnjutaProfile *self);
 	void(* descoped) (AnjutaProfile *self);
 	void(* scoped) (AnjutaProfile *self);
 };
@@ -110,8 +111,8 @@ void anjuta_profile_set_sync_file (AnjutaProfile *profile,
 								  GFile *sync_file);
 gboolean anjuta_profile_sync (AnjutaProfile *profile, GError **error);
 
-gboolean anjuta_profile_load (AnjutaProfile *profile);
-gboolean anjuta_profile_unload (AnjutaProfile *profile);
+gboolean anjuta_profile_load (AnjutaProfile *profile, GError **error);
+gboolean anjuta_profile_unload (AnjutaProfile *profile, GError **error);
 
 G_END_DECLS
 
