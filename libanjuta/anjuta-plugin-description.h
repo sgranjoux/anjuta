@@ -111,6 +111,15 @@ gboolean anjuta_plugin_description_get_locale_string (AnjutaPluginDescription *d
 													  const gchar *section,
 													  const gchar *keyname,
 													  gchar **val);
+
+gboolean anjuta_plugin_description_override (AnjutaPluginDescription *df,
+                                             const gchar *section_name,
+                                             const gchar *keyname,
+                                             const gchar*val);
+
+gboolean anjuta_plugin_description_remove (AnjutaPluginDescription *df,
+                                           const gchar *section_name,
+                                           const gchar *keyname);
 G_END_DECLS
 
 #endif /* ANJUTA_PLUGIN_PARSER_H */

@@ -13,6 +13,9 @@
 		<require group="Anjuta Plugin"
                  attribute="Interfaces"
                  value="IAnjutaDocumentManager"/>
+		<set group="Configuration"
+                 attribute="Standalone"
+                 value="yes"/>
     </plugin>
     <filter>
 		<require group="Anjuta Profile"

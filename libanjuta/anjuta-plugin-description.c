@@ -1,3 +1,4 @@
+/* -*- Mode: C; indent-tabs-mode: nil; c-basic-offset: 2; tab-width: 4 -*- */
 /*
  * AnjutaPluginDescription - Plugin meta data
  * anjuta-plugin-description.c Copyright (C) 2002 Red Hat, Inc.
@@ -49,6 +50,7 @@ struct _AnjutaPluginDescriptionLine {
   GQuark key; /* 0 means comment or blank line in value */
   char *locale;
   gchar *value;
+  GList *override; /* A list of previous value */
 };
 
 struct _AnjutaPluginDescription {
@@ -118,6 +120,7 @@ parser_free (AnjutaPluginDescriptionParser *parser)
 static void
 anjuta_plugin_description_line_free (AnjutaPluginDescriptionLine *line)
 {
+  g_list_free_full (line->override, (GDestroyNotify)g_free);
   g_free (line->locale);
   g_free (line->value);
 }
@@ -1008,4 +1011,95 @@ anjuta_plugin_description_get_boolean (AnjutaPluginDescription   *df,
   g_free (str);
 
   return res;
+}
+
+/**
+ * anjuta_plugin_description_override:
+ * @df: an #AnjutaPluginDescription object.
+ * @section_name: Section name.
+ * @keyname: Key name.
+ * @val: Pointer to value to store retured value.
+ * 
+ * Override the value of a key in the description. This can be removed using
+ * the function anjuta_plugin_description_remove().
+ *
+ * Return value: TRUE if sucessful, otherwise FALSE.
+ */
+gboolean anjuta_plugin_description_override (AnjutaPluginDescription *df,
+                                             const gchar *section_name,
+                                             const gchar *keyname,
+                                             const gchar*val)
+{
+  AnjutaPluginDescriptionSection *section;
+  AnjutaPluginDescriptionLine *line;
+
+  section = lookup_section (df, section_name);
+  if (!section)
+  {
+    gint n;
+
+    n = create_section (df, section_name, FALSE);
+    if (n == 0) return FALSE;
+    section = &df->sections[n];
+  }
+    
+  line = lookup_line (df,
+                      section,
+                      keyname,
+                      NULL);
+  if (line)
+  {
+    line->override = g_list_prepend (line->override, line->value);
+  }
+  else
+  {
+    line = new_line (section);
+    line->key = g_quark_from_string (keyname);
+  }
+  line->value = g_strdup (val);
+
+  return TRUE;
+}
+
+/**
+ * anjuta_plugin_description_remove:
+ * @df: an #AnjutaPluginDescription object.
+ * @section_name: Section name.
+ * @keyname: Key name.
+ * 
+ * Remove a key from the description.
+ *
+ * Return value: TRUE if sucessful, otherwise FALSE.
+ */
+gboolean anjuta_plugin_description_remove (AnjutaPluginDescription *df,
+                                           const gchar *section_name,
+                                           const gchar *keyname)
+{
+  AnjutaPluginDescriptionSection *section;
+  AnjutaPluginDescriptionLine *line;
+
+  section = lookup_section (df, section_name);
+  if (!section)
+    return FALSE;
+
+  line = lookup_line (df,
+                      section,
+                      keyname,
+                      NULL);
+
+  if (!line)
+    return FALSE;
+
+  g_free (line->value);
+  if (line->override == NULL)
+  {
+    line->value = NULL;
+  }
+  else
+  {
+    line->value = (gchar *)(line->override->data);
+    line->override = g_list_delete_link (line->override, line->override);
+  }
+
+  return TRUE;
 }
