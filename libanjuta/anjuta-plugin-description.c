@@ -41,6 +41,7 @@ typedef struct _AnjutaPluginDescriptionParser AnjutaPluginDescriptionParser;
 struct _AnjutaPluginDescriptionSection {
   GQuark section_name; /* 0 means just a comment block (before any section) */
   gint n_lines;
+  gint n_allocated;
   AnjutaPluginDescriptionLine *lines;
 };
 
@@ -52,6 +53,7 @@ struct _AnjutaPluginDescriptionLine {
 
 struct _AnjutaPluginDescription {
   gint n_sections;
+  gint n_allocated;
   AnjutaPluginDescriptionSection *sections;
   char *current_locale[2];
 };
@@ -59,8 +61,6 @@ struct _AnjutaPluginDescription {
 struct _AnjutaPluginDescriptionParser {
   AnjutaPluginDescription *df;
   gint current_section;
-  gint n_allocated_lines;
-  gint n_allocated_sections;
   gint line_nr;
   char *line;
 };
@@ -145,6 +145,7 @@ anjuta_plugin_description_free (AnjutaPluginDescription *df)
   int i;
 
   for (i = 0; i < df->n_sections; i++)
+  for (i = 0; i < df->n_sections; i++)
     anjuta_plugin_description_section_free (&df->sections[i]);
   g_free (df->sections);
   g_free (df->current_locale[0]);
@@ -154,36 +155,33 @@ anjuta_plugin_description_free (AnjutaPluginDescription *df)
 }
 
 static void
-grow_lines (AnjutaPluginDescriptionParser *parser)
+grow_lines (AnjutaPluginDescriptionSection *section)
 {
   int new_n_lines;
-  AnjutaPluginDescriptionSection *section;
 
-  if (parser->n_allocated_lines == 0)
+  if (section->n_allocated == 0)
     new_n_lines = 1;
   else
-    new_n_lines = parser->n_allocated_lines*2;
-
-  section = &parser->df->sections[parser->current_section];
+    new_n_lines = section->n_allocated*2;
 
   section->lines = g_realloc (section->lines,
 			      sizeof (AnjutaPluginDescriptionLine) * new_n_lines);
-  parser->n_allocated_lines = new_n_lines;
+  section->n_allocated = new_n_lines;
 }
 
 static void
-grow_sections (AnjutaPluginDescriptionParser *parser)
+grow_sections (AnjutaPluginDescription *df)
 {
   int new_n_sections;
 
-  if (parser->n_allocated_sections == 0)
+  if (df->n_allocated == 0)
     new_n_sections = 1;
   else
-    new_n_sections = parser->n_allocated_sections*2;
+    new_n_sections = df->n_allocated*2;
 
-  parser->df->sections = g_realloc (parser->df->sections,
-				    sizeof (AnjutaPluginDescriptionSection) * new_n_sections);
-  parser->n_allocated_sections = new_n_sections;
+  df->sections = g_realloc (df->sections,
+                            sizeof (AnjutaPluginDescriptionSection) * new_n_sections);
+  df->n_allocated = new_n_sections;
 }
 
 static gchar *
@@ -306,52 +304,51 @@ escape_string (const gchar *str, gboolean escape_first_space)
 }
 
 
-static void 
-open_section (AnjutaPluginDescriptionParser *parser,
-	      const char           *name)
+static gint 
+create_section (AnjutaPluginDescription *df,
+                const char           *name,
+                gboolean            first)
 {
-  int n;
+  gint n;
   
-  if (parser->n_allocated_sections == parser->df->n_sections)
-    grow_sections (parser);
+  if (df->n_allocated == df->n_sections)
+    grow_sections (df);
 
-  if (parser->current_section == 0 &&
-      parser->df->sections[0].section_name == 0 &&
-      parser->df->sections[0].n_lines == 0)
+  if (first &&
+      df->sections[0].section_name == 0 &&
+      df->sections[0].n_lines == 0)
     {
       if (!name)
-	g_warning ("non-initial NULL section\n");
+        g_warning ("non-initial NULL section\n");
       
       /* The initial section was empty. Piggyback on it. */
-      parser->df->sections[0].section_name = g_quark_from_string (name);
+      df->sections[0].section_name = g_quark_from_string (name);
 
-      return;
+      return 0;
     }
   
-  n = parser->df->n_sections++;
+  n = df->n_sections++;
 
   if (name)
-    parser->df->sections[n].section_name = g_quark_from_string (name);
+    df->sections[n].section_name = g_quark_from_string (name);
   else
-    parser->df->sections[n].section_name = 0;
-  parser->df->sections[n].n_lines = 0;
-  parser->df->sections[n].lines = NULL;
+    df->sections[n].section_name = 0;
+  df->sections[n].n_lines = 0;
+  df->sections[n].n_allocated = 0;
+  df->sections[n].lines = NULL;
 
-  parser->current_section = n;
-  parser->n_allocated_lines = 0;
-  grow_lines (parser);
+  grow_lines (&df->sections[n]);
+
+  return n;
 }
 
 static AnjutaPluginDescriptionLine *
-new_line (AnjutaPluginDescriptionParser *parser)
+new_line (AnjutaPluginDescriptionSection *section)
 {
-  AnjutaPluginDescriptionSection *section;
   AnjutaPluginDescriptionLine *line;
 
-  section = &parser->df->sections[parser->current_section];
-  
-  if (parser->n_allocated_lines == section->n_lines)
-    grow_lines (parser);
+  if (section->n_allocated == section->n_lines)
+    grow_lines (section);
 
   line = &section->lines[section->n_lines++];
 
@@ -387,8 +384,7 @@ parse_comment_or_blank (AnjutaPluginDescriptionParser *parser)
   if (line_end == NULL)
     line_end = parser->line + strlen (parser->line);
 
-  line = new_line (parser);
-  
+  line = new_line (&parser->df->sections[parser->current_section]);
   line->value = g_strndup (parser->line, line_end - parser->line);
 
   parser->line = (line_end) ? line_end + 1 : NULL;
@@ -422,8 +418,8 @@ parse_section_start (AnjutaPluginDescriptionParser *parser, GError **error)
       return FALSE;
     }
 
-  open_section (parser, section_name);
-  
+  parser->current_section = create_section (parser->df, section_name, parser->current_section == 0);
+
   parser->line = (line_end) ? line_end + 1 : NULL;
   parser->line_nr++;
 
@@ -517,7 +513,7 @@ parse_key_value (AnjutaPluginDescriptionParser *parser, GError **error)
       return FALSE;
     }
 
-  line = new_line (parser);
+  line = new_line (&parser->df->sections[parser->current_section]);
   key = g_strndup (key_start, key_end - key_start);
   line->key = g_quark_from_string (key);
   g_free (key);
@@ -598,28 +594,25 @@ anjuta_plugin_description_new_from_string (char *data, GError **error)
   parser.df = g_new0 (AnjutaPluginDescription, 1);
   parser.current_section = -1;
 
-  parser.n_allocated_lines = 0;
-  parser.n_allocated_sections = 0;
   parser.line_nr = 1;
-
   parser.line = data;
 
-	/* Put any initial comments in a NULL segment */
-	open_section (&parser, NULL);
-	while (parser.line != NULL && strlen(parser.line))
-	{ 
-		if (*parser.line == '[') {
-			if (!parse_section_start (&parser, error))
-				return NULL;
-		} else if (is_blank_line (&parser) ||
-		           *parser.line == '#')
-			parse_comment_or_blank (&parser);
-		else
-		{
-			if (!parse_key_value (&parser, error))
-				return NULL;
-		}
-	}
+  /* Put any initial comments in a NULL segment */
+  parser.current_section = create_section (parser.df, NULL, FALSE);
+  while (parser.line != NULL && strlen(parser.line))
+  { 
+    if (*parser.line == '[') {
+      if (!parse_section_start (&parser, error))
+        return NULL;
+    } else if (is_blank_line (&parser) ||
+               *parser.line == '#')
+      parse_comment_or_blank (&parser);
+    else
+    {
+      if (!parse_key_value (&parser, error))
+        return NULL;
+    }
+  }
  
   return parser.df;
 }
