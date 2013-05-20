@@ -1354,10 +1354,43 @@ on_window_key_press_event (AnjutaShell *shell,
 	return TRUE;
 }
 
+static gboolean
+add_new_default_document (gpointer data)
+{
+	IAnjutaDocument *page;
+
+	page = anjuta_docman_get_current_document (ANJUTA_DOCMAN (data));
+	if (page == NULL)
+	{
+		anjuta_docman_add_editor (ANJUTA_DOCMAN (data), NULL, NULL);
+	}
+
+	return FALSE;
+}
+
 static void
 on_session_load (AnjutaShell *shell, AnjutaSessionPhase phase,
 				 AnjutaSession *session, DocmanPlugin *plugin)
 {
+	if (phase == ANJUTA_SESSION_PHASE_END)
+	{
+		/* Add a empty buffer if the document manager is used "Standalone" */
+		AnjutaPluginManager *plugin_manager;
+		AnjutaPluginHandle *handle;
+		AnjutaPluginDescription *desc;
+		gboolean standalone = FALSE;
+
+		plugin_manager = anjuta_shell_get_plugin_manager (ANJUTA_PLUGIN (plugin)->shell, NULL);
+		handle = anjuta_plugin_manager_get_plugin_handle (plugin_manager, G_OBJECT (plugin));
+		desc = anjuta_plugin_handle_get_description (handle);
+		
+		anjuta_plugin_description_get_boolean (desc, "Configuration", "Standalone", &standalone);
+		if (standalone)
+		{
+			g_idle_add (add_new_default_document, plugin->docman);
+		}
+	}
+
 	if (phase != ANJUTA_SESSION_PHASE_NORMAL)
 		return;
 
